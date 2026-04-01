@@ -1,7 +1,6 @@
 require('dotenv').config();
 const express = require('express');
 const cors    = require('cors');
-const path    = require('path');
 
 const authRoutes         = require('./routes/auth');
 const transactionsRoutes = require('./routes/transactions');
@@ -22,9 +21,6 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Serve frontend statically from parent folder
-app.use(express.static(path.join(__dirname, '..')));
-
 // ── API Routes ──
 app.use('/api/auth',         authRoutes);
 app.use('/api/transactions', transactionsRoutes);
@@ -37,13 +33,9 @@ app.use('/api/vehicles',     vehiclesRoutes);
 // ── Health check ──
 app.get('/api/health', (_, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
-// ── Fallback: serve index.html for any non-API route ──
-app.get('*', (req, res) => {
-  if (!req.path.startsWith('/api')) {
-    res.sendFile(path.join(__dirname, '..', 'index.html'));
-  } else {
-    res.status(404).json({ error: 'Route introuvable.' });
-  }
+// ── Fallback API ──
+app.use((req, res) => {
+  res.status(404).json({ error: 'Route introuvable.' });
 });
 
 // Démarrage local uniquement (Vercel gère le cycle de vie en serverless)
