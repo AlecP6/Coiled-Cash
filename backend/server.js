@@ -46,6 +46,11 @@ app.get('*', (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`✅ Coiled Cash backend démarré sur http://localhost:${PORT}`);
-});
+// Démarrage local uniquement (Vercel gère le cycle de vie en serverless)
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`✅ Coiled Cash backend démarré sur http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
