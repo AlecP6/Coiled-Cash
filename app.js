@@ -216,6 +216,7 @@ function switchSection(targetId) {
       fetchAdminUsers();
     }
     if (targetId === 'territoires') {
+      fetchGroups();
       setTimeout(initMap, 80);
     }
   }
@@ -675,6 +676,7 @@ async function fetchGroups() {
     if (!res.ok) return;
     groups = data;
     renderGroups();
+    refreshMapOverlays();
   } catch { console.error('Erreur chargement groupes.'); }
 }
 
@@ -767,6 +769,25 @@ document.getElementById('groupsGrid')?.addEventListener('click', (e) => {
   }
 });
 
+function buildZoneSelector(selectedIds = []) {
+  const container = document.getElementById('zoneSelector');
+  if (!container) return;
+  container.innerHTML = '';
+  GTA_ZONES.forEach(zone => {
+    const chip = document.createElement('span');
+    chip.className   = 'zone-chip' + (selectedIds.includes(zone.id) ? ' selected' : '');
+    chip.textContent = zone.name;
+    chip.dataset.zid = zone.id;
+    chip.addEventListener('click', () => chip.classList.toggle('selected'));
+    container.appendChild(chip);
+  });
+}
+
+function getSelectedZoneIds() {
+  return Array.from(document.querySelectorAll('#zoneSelector .zone-chip.selected'))
+    .map(c => c.dataset.zid).join(',');
+}
+
 function openGroupModal(group) {
   document.getElementById('groupModalTitle').textContent = group ? `Modifier : ${group.name}` : 'Nouveau groupe';
   document.getElementById('groupEditId').value    = group?.id ?? '';
@@ -776,9 +797,21 @@ function openGroupModal(group) {
   document.getElementById('groupBusiness').value  = group?.business  ?? '';
   document.getElementById('groupCompany').value   = group?.company   ?? '';
   document.getElementById('groupNotes').value     = group?.notes     ?? '';
+
+  const color = group?.color || '#4caf82';
+  document.getElementById('groupColor').value           = color;
+  document.getElementById('groupColorLabel').textContent = color;
+
+  const selectedZones = group?.zone_ids ? group.zone_ids.split(',').filter(Boolean) : [];
+  buildZoneSelector(selectedZones);
+
   document.getElementById('groupError').textContent = '';
   openModal('groupModal');
 }
+
+document.getElementById('groupColor')?.addEventListener('input', (e) => {
+  document.getElementById('groupColorLabel').textContent = e.target.value;
+});
 
 // Sauvegarder groupe
 document.getElementById('btnSaveGroup')?.addEventListener('click', async () => {
@@ -795,7 +828,9 @@ document.getElementById('btnSaveGroup')?.addEventListener('click', async () => {
     return;
   }
 
-  const body = { name, residence, territory, business, company, notes };
+  const color    = document.getElementById('groupColor').value;
+  const zone_ids = getSelectedZoneIds();
+  const body = { name, residence, territory, business, company, notes, color, zone_ids };
   const isEdit  = id !== '';
   const url     = isEdit ? `${API}/groups/${id}` : `${API}/groups`;
   const method  = isEdit ? 'PUT' : 'POST';
@@ -817,6 +852,7 @@ document.getElementById('btnSaveGroup')?.addEventListener('click', async () => {
       groups.unshift(data);
     }
     renderGroups();
+    refreshMapOverlays();
     closeModal('groupModal');
   } catch {
     document.getElementById('groupError').textContent = 'Impossible de contacter le serveur.';
@@ -831,6 +867,7 @@ async function deleteGroup(id) {
     if (!res.ok) return;
     groups = groups.filter(g => g.id !== id);
     renderGroups();
+    refreshMapOverlays();
   } catch { alert('Impossible de contacter le serveur.'); }
 }
 
