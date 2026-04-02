@@ -1453,7 +1453,7 @@ function initMap() {
     crs, minZoom: -2, maxZoom: 2, zoom: -1,
     center: [H / 2, W / 2],
     attributionControl: false,
-    dragging:         false,
+    dragging:         true,
     touchZoom:        true,
     scrollWheelZoom:  true,
     doubleClickZoom:  false,

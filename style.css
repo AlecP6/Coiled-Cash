@@ -1604,7 +1604,7 @@ body {
 .gta-map-img { filter: grayscale(100%) brightness(0.85) contrast(1.1); }
 
 /* Leaflet overrides */
-.leaflet-container { background: #0a0a0a !important; cursor: default !important; }
+.leaflet-container { background: #0a0a0a !important; }
 .leaflet-control-zoom a {
   background-color: var(--bg-surface) !important;
   color: var(--text-primary) !important;
