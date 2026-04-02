@@ -1453,6 +1453,12 @@ function initMap() {
     crs, minZoom: -2, maxZoom: 2, zoom: -1,
     center: [H / 2, W / 2],
     attributionControl: false,
+    dragging:         false,
+    touchZoom:        true,
+    scrollWheelZoom:  true,
+    doubleClickZoom:  false,
+    boxZoom:          false,
+    keyboard:         false,
   });
 
   L.imageOverlay('gta5-map.jpg', [[0,0],[H,W]], {
@@ -1460,7 +1466,7 @@ function initMap() {
     className: 'gta-map-img',
   }).addTo(gtaMap);
 
-  gtaMap.fitBounds([[0,0],[H,W]]);
+  gtaMap.fitBounds([[0,0],[H,W]], { animate: false });
   mapInitialized = true;
 
   // Coordonnées en temps réel
