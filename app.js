@@ -144,6 +144,9 @@ function onUserLoggedIn(user) {
   const initials = user.rp_name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
   document.getElementById('userAvatar').textContent = initials;
   document.getElementById('userRpName').textContent = user.rp_name;
+  // Afficher l'onglet Admin si l'utilisateur est admin
+  const adminNav = document.getElementById('adminNavItem');
+  if (adminNav) adminNav.style.display = user.is_admin ? '' : 'none';
   refreshComptabilite();
 }
 
@@ -178,7 +181,7 @@ const sectionTitles = {
   'groupes':       'Groupes',
   'resume-tables': 'Résumé Tables',
   'vehicule':      'Véhicule',
-
+  'admin':         'Administration',
 };
 
 function switchSection(targetId) {
@@ -209,7 +212,9 @@ function switchSection(targetId) {
       fetchMembers();
       populateVehicleAssignSelect();
     }
-
+    if (targetId === 'admin') {
+      fetchAdminUsers();
+    }
   }
 }
 
@@ -1250,6 +1255,108 @@ document.querySelectorAll('[data-vfilter]').forEach(btn => {
 document.getElementById('vehicleSearch')?.addEventListener('input', (e) => {
   vehicleSearch = e.target.value.trim();
   renderVehicles();
+});
+
+// ===== ADMIN =====
+let adminUsers = [];
+
+async function fetchAdminUsers() {
+  const tbody = document.getElementById('adminUsersTbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="5" class="admin-empty">Chargement...</td></tr>';
+  try {
+    const res  = await fetch(`${API}/admin/users`, { headers: authHeaders() });
+    const data = await res.json();
+    if (!res.ok) { tbody.innerHTML = `<tr><td colspan="5" class="admin-empty">${data.error}</td></tr>`; return; }
+    adminUsers = data;
+    renderAdminUsers();
+  } catch {
+    tbody.innerHTML = '<tr><td colspan="5" class="admin-empty">Impossible de contacter le serveur.</td></tr>';
+  }
+}
+
+function renderAdminUsers() {
+  const tbody = document.getElementById('adminUsersTbody');
+  if (!tbody) return;
+  if (adminUsers.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="admin-empty">Aucun membre enregistré.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = adminUsers.map(u => `
+    <tr>
+      <td><span class="admin-username">${escapeHtml(u.username)}</span></td>
+      <td>${escapeHtml(u.rp_name)}</td>
+      <td>
+        <span class="badge ${u.is_admin ? 'badge-admin' : 'badge-member'}">
+          ${u.is_admin ? '🛡️ Admin' : '👤 Membre'}
+        </span>
+      </td>
+      <td>${new Date(u.created_at).toLocaleDateString('fr-FR')}</td>
+      <td class="admin-actions">
+        <button class="btn-edit" data-reset-id="${u.id}" data-reset-name="${escapeHtml(u.username)}">🔑 Réinitialiser mdp</button>
+        ${u.id !== currentUser?.id ? `
+          <button class="btn-edit" data-toggle-admin="${u.id}">${u.is_admin ? '⬇ Rétrograder' : '⬆ Promouvoir'}</button>
+          <button class="btn-delete" data-admin-del="${u.id}">✕</button>
+        ` : ''}
+      </td>
+    </tr>
+  `).join('');
+}
+
+document.getElementById('adminUsersTbody')?.addEventListener('click', async (e) => {
+  // Reset mot de passe
+  const resetBtn = e.target.closest('[data-reset-id]');
+  if (resetBtn) {
+    document.getElementById('resetPwdUserId').value = resetBtn.dataset.resetId;
+    document.getElementById('resetPwdTitle').textContent = `Réinitialiser : ${resetBtn.dataset.resetName}`;
+    document.getElementById('resetPwdInput').value = '';
+    document.getElementById('resetPwdError').textContent = '';
+    openModal('resetPwdModal');
+    return;
+  }
+  // Toggle admin
+  const toggleBtn = e.target.closest('[data-toggle-admin]');
+  if (toggleBtn) {
+    const id = toggleBtn.dataset.toggleAdmin;
+    try {
+      const res = await fetch(`${API}/admin/users/${id}/toggle-admin`, { method: 'PATCH', headers: authHeaders() });
+      if (res.ok) fetchAdminUsers();
+    } catch {}
+    return;
+  }
+  // Supprimer
+  const delBtn = e.target.closest('[data-admin-del]');
+  if (delBtn) {
+    if (!confirm('Supprimer ce membre définitivement ?')) return;
+    try {
+      const res = await fetch(`${API}/admin/users/${delBtn.dataset.adminDel}`, { method: 'DELETE', headers: authHeaders() });
+      if (res.ok) fetchAdminUsers();
+    } catch {}
+  }
+});
+
+// Confirmer reset mot de passe
+document.getElementById('btnConfirmResetPwd')?.addEventListener('click', async () => {
+  const id  = document.getElementById('resetPwdUserId').value;
+  const pwd = document.getElementById('resetPwdInput').value.trim();
+  const err = document.getElementById('resetPwdError');
+  err.textContent = '';
+  if (!pwd) { err.textContent = 'Entrez un nouveau mot de passe.'; return; }
+  try {
+    const res  = await fetch(`${API}/admin/users/${id}/reset-password`, {
+      method: 'PATCH', headers: authHeaders(),
+      body: JSON.stringify({ newPassword: pwd }),
+    });
+    const data = await res.json();
+    if (!res.ok) { err.textContent = data.error; return; }
+    closeModal('resetPwdModal');
+  } catch { err.textContent = 'Impossible de contacter le serveur.'; }
+});
+
+document.getElementById('resetPwdClose')?.addEventListener('click',  () => closeModal('resetPwdModal'));
+document.getElementById('resetPwdCancel')?.addEventListener('click', () => closeModal('resetPwdModal'));
+document.getElementById('resetPwdModal')?.addEventListener('click', (e) => {
+  if (e.target === document.getElementById('resetPwdModal')) closeModal('resetPwdModal');
 });
 
 // ===== DATE DISPLAY =====
