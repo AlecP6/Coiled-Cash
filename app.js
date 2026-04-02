@@ -210,7 +210,6 @@ function switchSection(targetId) {
     if (targetId === 'vehicule') {
       fetchVehicles();
       fetchMembers();
-      populateVehicleAssignSelect();
     }
     if (targetId === 'admin') {
       fetchAdminUsers();
@@ -460,6 +459,7 @@ async function fetchMembers() {
     if (!res.ok) return;
     members = data;
     populateAssignSelect();
+    populateVehicleAssignSelect();
   } catch { console.error('Erreur chargement membres.'); }
 }
 
@@ -585,7 +585,7 @@ document.getElementById('weaponsGrid')?.addEventListener('click', (e) => {
     assignTarget = Number(assignBtn.dataset.id);
     const weapon = weapons.find(w => w.id === assignTarget);
     document.getElementById('assignModalTitle').textContent = `Attribuer : ${weapon?.name}`;
-    // Pre-select current assignee
+    populateAssignSelect();
     const sel = document.getElementById('assignSelect');
     sel.value = weapon?.assigned_to ?? '';
     openModal('assignModal');
@@ -1162,6 +1162,7 @@ document.getElementById('vehiclesGrid')?.addEventListener('click', (e) => {
     vehicleAssignTarget = Number(assignBtn.dataset.vid);
     const vehicle = vehicles.find(v => v.id === vehicleAssignTarget);
     document.getElementById('vehicleAssignModalTitle').textContent = `Attribuer : ${vehicle?.name}`;
+    populateVehicleAssignSelect();
     const sel = document.getElementById('vehicleAssignSelect');
     sel.value = vehicle?.assigned_to ?? '';
     openModal('vehicleAssignModal');
