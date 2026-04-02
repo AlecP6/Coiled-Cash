@@ -1,8 +1,49 @@
 const express = require('express');
+const https   = require('https');
 const pool    = require('../db');
 const auth    = require('../middleware/authMiddleware');
 
 const router = express.Router();
+
+// Envoie un embed Discord via webhook (sans dépendance externe)
+function sendDiscordWebhook(summary) {
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  if (!webhookUrl) return;
+
+  const dateFormatted = summary.event_date
+    ? new Date(summary.event_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    : '—';
+
+  const payload = JSON.stringify({
+    embeds: [{
+      title:       `📋 ${summary.title}`,
+      description: summary.content.length > 4000
+        ? summary.content.slice(0, 3997) + '...'
+        : summary.content,
+      color:       0x4caf82,
+      fields: [
+        { name: '📅 Date de l\'événement', value: dateFormatted,           inline: true },
+        { name: '✍️ Publié par',           value: summary.created_by_name, inline: true },
+      ],
+      footer:    { text: 'Coiled Cash — Résumé Tables' },
+      timestamp: new Date().toISOString(),
+    }],
+  });
+
+  try {
+    const url  = new URL(webhookUrl);
+    const opts = {
+      hostname: url.hostname,
+      path:     url.pathname + url.search,
+      method:   'POST',
+      headers:  { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
+    };
+    const req = https.request(opts);
+    req.on('error', () => {});
+    req.write(payload);
+    req.end();
+  } catch {}
+}
 
 // GET /api/summaries — lecture par tous les membres connectés
 router.get('/', auth, async (req, res) => {
@@ -38,6 +79,9 @@ router.post('/', auth, async (req, res) => {
     const row = result.rows[0];
     row.created_by_name = req.user.rp_name;
     res.status(201).json(row);
+
+    // Notification Discord (non bloquant)
+    sendDiscordWebhook(row);
   } catch (err) {
     console.error('Add summary error:', err);
     res.status(500).json({ error: 'Erreur serveur.' });
