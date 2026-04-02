@@ -181,6 +181,7 @@ const sectionTitles = {
   'groupes':       'Groupes',
   'resume-tables': 'Résumé Tables',
   'vehicule':      'Véhicule',
+  'territoires':   'Territoires',
   'admin':         'Administration',
 };
 
@@ -213,6 +214,9 @@ function switchSection(targetId) {
     }
     if (targetId === 'admin') {
       fetchAdminUsers();
+    }
+    if (targetId === 'territoires') {
+      setTimeout(initMap, 80);
     }
   }
 }
@@ -1359,6 +1363,244 @@ document.getElementById('resetPwdCancel')?.addEventListener('click', () => close
 document.getElementById('resetPwdModal')?.addEventListener('click', (e) => {
   if (e.target === document.getElementById('resetPwdModal')) closeModal('resetPwdModal');
 });
+
+// ===== TERRITOIRES — CARTE GTA 5 =====
+const GTA_ZONES = [
+  { id: 'paleto_bay',      name: 'Paleto Bay',           polygon: [[1843,178],[1843,518],[1687,518],[1687,282],[1744,178]] },
+  { id: 'paleto_cove',     name: 'Paleto Cove',          polygon: [[1577,178],[1577,262],[1379,262],[1379,178]] },
+  { id: 'grapeseed',       name: 'Grapeseed',            polygon: [[1687,518],[1687,720],[1500,720],[1500,518]] },
+  { id: 'alamo_sea',       name: 'Alamo Sea',            polygon: [[1500,518],[1500,820],[1280,820],[1280,518]] },
+  { id: 'sandy_shores',    name: 'Sandy Shores',         polygon: [[1280,518],[1280,700],[1100,700],[1100,518]] },
+  { id: 'mount_chiliad',   name: 'Mount Chiliad',        polygon: [[1379,178],[1379,400],[1200,400],[1200,178]] },
+  { id: 'zancudo',         name: 'Fort Zancudo',         polygon: [[900,340],[900,540],[720,540],[720,340]] },
+  { id: 'chumash',         name: 'Chumash',              polygon: [[700,460],[700,640],[540,640],[540,460]] },
+  { id: 'banham_canyon',   name: 'Banham Canyon',        polygon: [[780,540],[780,700],[620,700],[620,540]] },
+  { id: 'pacific_bluffs',  name: 'Pacific Bluffs',       polygon: [[600,640],[600,800],[440,800],[440,640]] },
+  { id: 'richman',         name: 'Richman',              polygon: [[820,700],[820,880],[660,880],[660,700]] },
+  { id: 'vinewood_hills',  name: 'Vinewood Hills',       polygon: [[980,680],[980,860],[820,860],[820,680]] },
+  { id: 'north_vinewood',  name: 'North Vinewood',       polygon: [[980,820],[980,960],[840,960],[840,820]] },
+  { id: 'vinewood',        name: 'Vinewood',             polygon: [[840,880],[840,1020],[700,1020],[700,880]] },
+  { id: 'downtown_ls',     name: 'Downtown LS',          polygon: [[760,960],[760,1120],[620,1120],[620,960]] },
+  { id: 'little_seoul',    name: 'Little Seoul',         polygon: [[640,1040],[640,1180],[500,1180],[500,1040]] },
+  { id: 'strawberry',      name: 'Strawberry',           polygon: [[700,1080],[700,1220],[560,1220],[560,1080]] },
+  { id: 'davis',           name: 'Davis',                polygon: [[680,1180],[680,1340],[540,1340],[540,1180]] },
+  { id: 'chamberlain',     name: 'Chamberlain Hills',    polygon: [[600,1240],[600,1380],[460,1380],[460,1240]] },
+  { id: 'south_ls',        name: 'South LS',             polygon: [[540,1340],[540,1480],[400,1480],[400,1340]] },
+  { id: 'elysian_island',  name: 'Elysian Island',       polygon: [[460,1440],[460,1620],[300,1620],[300,1440]] },
+  { id: 'port_ls',         name: 'Port de LS',           polygon: [[340,1380],[340,1560],[180,1560],[180,1380]] },
+  { id: 'east_ls',         name: 'East LS',              polygon: [[860,1040],[860,1240],[700,1240],[700,1040]] },
+  { id: 'cypress_flats',   name: 'Cypress Flats',        polygon: [[720,1200],[720,1380],[560,1380],[560,1200]] },
+  { id: 'la_mesa',         name: 'La Mesa',              polygon: [[900,1080],[900,1260],[740,1260],[740,1080]] },
+  { id: 'murrieta',        name: 'Murrieta Heights',     polygon: [[960,1160],[960,1320],[800,1320],[800,1160]] },
+  { id: 'downtown_vinew',  name: 'Downtown Vinewood',    polygon: [[900,880],[900,1040],[760,1040],[760,880]] },
+  { id: 'mirror_park',     name: 'Mirror Park',          polygon: [[1020,960],[1020,1120],[880,1120],[880,960]] },
+  { id: 'banning',         name: 'Banning',              polygon: [[560,1460],[560,1600],[420,1600],[420,1460]] },
+  { id: 'tataviam',        name: 'Tataviam Mountains',   polygon: [[1100,400],[1100,600],[940,600],[940,400]] },
+  { id: 'grand_senora',    name: 'Grand Senora Desert',  polygon: [[1100,600],[1100,820],[900,820],[900,600]] },
+  { id: 'harmony',         name: 'Harmony',              polygon: [[900,680],[900,860],[740,860],[740,680]] },
+  { id: 'recession_pool',  name: 'Ron Alternates Wind',  polygon: [[780,820],[780,960],[640,960],[640,820]] },
+  { id: 'great_ocean',     name: 'Great Ocean Hwy',      polygon: [[500,640],[500,820],[340,820],[340,640]] },
+  { id: 'pacific_ocean',   name: 'Raton Canyon',         polygon: [[860,500],[860,680],[700,680],[700,500]] },
+  { id: 'senora_way',      name: 'Route de Senora',      polygon: [[1060,700],[1060,860],[900,860],[900,700]] },
+];
+
+// Version — incrémenter pour forcer reset des zones sauvegardées
+const ZONES_VERSION = 3;
+if (parseInt(localStorage.getItem('cc_zones_version') || '0') < ZONES_VERSION) {
+  localStorage.removeItem('cc_custom_zones');
+  localStorage.setItem('cc_zones_version', String(ZONES_VERSION));
+}
+
+function loadCustomZones() {
+  const saved = localStorage.getItem('cc_custom_zones');
+  if (!saved) return;
+  try {
+    JSON.parse(saved).forEach(({ id, polygon }) => {
+      const z = GTA_ZONES.find(z => z.id === id);
+      if (z) z.polygon = polygon;
+    });
+  } catch {}
+}
+
+function saveCustomZone(id, polygon) {
+  let custom = [];
+  try { custom = JSON.parse(localStorage.getItem('cc_custom_zones') || '[]'); } catch {}
+  const idx = custom.findIndex(c => c.id === id);
+  if (idx !== -1) custom[idx].polygon = polygon; else custom.push({ id, polygon });
+  localStorage.setItem('cc_custom_zones', JSON.stringify(custom));
+}
+
+// ─── Variables carte ───
+let gtaMap        = null;
+let mapLayers     = {};
+let editorMode    = false;
+let editorPoints  = [];
+let editorMarkers = [];
+let editorPreview = null;
+let editorZoneId  = null;
+let mapInitialized = false;
+
+function initMap() {
+  if (mapInitialized) { gtaMap?.invalidateSize(); return; }
+  const el = document.getElementById('gtaMap');
+  if (!el || typeof L === 'undefined') return;
+
+  loadCustomZones();
+
+  const W = 1920, H = 1920;
+  const crs = L.CRS.Simple;
+  gtaMap = L.map('gtaMap', {
+    crs, minZoom: -2, maxZoom: 2, zoom: -1,
+    center: [H / 2, W / 2],
+    attributionControl: false,
+  });
+
+  L.imageOverlay('gta5-map.jpg', [[0,0],[H,W]], {
+    opacity: 1,
+    className: 'gta-map-img',
+  }).addTo(gtaMap);
+
+  gtaMap.fitBounds([[0,0],[H,W]]);
+  mapInitialized = true;
+
+  // Coordonnées en temps réel
+  gtaMap.on('mousemove', (e) => {
+    const { lat, lng } = e.latlng;
+    const x = Math.round(lng), y = Math.round(H - lat);
+    document.getElementById('mapCoordDisplay').textContent =
+      `x: ${x}  y: ${y}   [lat: ${Math.round(lat)}, lng: ${x}]`;
+    if (editorMode && editorPoints.length > 0) updateEditorPreview();
+  });
+
+  // Clic en mode éditeur
+  gtaMap.on('click', (e) => {
+    if (!editorMode || !editorZoneId) return;
+    const pt = [Math.round(e.latlng.lat), Math.round(e.latlng.lng)];
+    editorPoints.push(pt);
+    const marker = L.circleMarker([pt[0], pt[1]], {
+      radius: 5, color: '#fff', fillColor: '#4caf82', fillOpacity: 1, weight: 2,
+    }).addTo(gtaMap);
+    editorMarkers.push(marker);
+    updateEditorPreview();
+    updateEditorCoordsOutput();
+  });
+
+  refreshMapOverlays();
+  initMapEditor();
+}
+
+function refreshMapOverlays() {
+  if (!gtaMap) return;
+  Object.values(mapLayers).forEach(l => gtaMap.removeLayer(l));
+  mapLayers = {};
+
+  // Zones des groupes (si groups chargés et ont zone_ids)
+  groups.forEach(g => {
+    if (!g.zone_ids || !g.color) return;
+    g.zone_ids.split(',').filter(Boolean).forEach(zid => {
+      const zone = GTA_ZONES.find(z => z.id === zid.trim());
+      if (!zone) return;
+      const poly = L.polygon(zone.polygon, {
+        color: g.color, weight: 2, fillColor: g.color, fillOpacity: 0.25,
+      }).addTo(gtaMap).bindTooltip(g.name, { permanent: false });
+      mapLayers[`${g.id}_${zid}`] = poly;
+    });
+  });
+
+  renderMapLegend();
+}
+
+function renderMapLegend() {
+  const wrapper = document.querySelector('.map-wrapper');
+  if (!wrapper) return;
+  const existing = wrapper.querySelector('.map-legend');
+  if (existing) existing.remove();
+
+  const claimed = groups.filter(g => g.zone_ids && g.zone_ids.trim() && g.color);
+  if (claimed.length === 0) return;
+
+  const legend = document.createElement('div');
+  legend.className = 'map-legend';
+  legend.innerHTML = `<div class="map-legend-title">Groupes</div>` +
+    claimed.map(g => `
+      <div class="map-legend-item">
+        <span class="map-legend-dot" style="background:${g.color}"></span>
+        ${escapeHtml(g.name)}
+      </div>`).join('');
+  wrapper.appendChild(legend);
+}
+
+function updateEditorPreview() {
+  if (editorPreview) { gtaMap.removeLayer(editorPreview); editorPreview = null; }
+  if (editorPoints.length < 2) return;
+  editorPreview = L.polygon(editorPoints, {
+    color: '#4caf82', weight: 2, dashArray: '6,4', fillColor: '#4caf82', fillOpacity: 0.15,
+  }).addTo(gtaMap);
+}
+
+function updateEditorCoordsOutput() {
+  const out = document.getElementById('editorCoordsOutput');
+  if (out) out.textContent = JSON.stringify(editorPoints);
+}
+
+function initMapEditor() {
+  const btnToggle   = document.getElementById('btnToggleEditor');
+  const zoneSelect  = document.getElementById('editorZoneSelect');
+  const btnStart    = document.getElementById('btnStartDraw');
+  const btnClear    = document.getElementById('btnClearDraw');
+  const btnSave     = document.getElementById('btnSaveZone');
+  const coordsPanel = document.getElementById('editorCoordsPanel');
+
+  // Peupler le select des zones
+  GTA_ZONES.forEach(z => {
+    const opt = document.createElement('option');
+    opt.value = z.id; opt.textContent = z.name;
+    zoneSelect?.appendChild(opt);
+  });
+
+  btnToggle?.addEventListener('click', () => {
+    editorMode = !editorMode;
+    btnToggle.textContent = editorMode ? '✕ Quitter éditeur' : '✏️ Mode édition zones';
+    btnToggle.classList.toggle('active', editorMode);
+    const show = editorMode ? '' : 'none';
+    [zoneSelect, btnStart, btnClear, btnSave].forEach(el => { if (el) el.style.display = show; });
+    if (coordsPanel) coordsPanel.style.display = editorMode ? '' : 'none';
+    if (!editorMode) {
+      clearEditorDraw();
+      gtaMap.getContainer().classList.remove('map-editor-active');
+    }
+  });
+
+  btnStart?.addEventListener('click', () => {
+    editorZoneId = zoneSelect?.value;
+    if (!editorZoneId) { alert('Choisissez une zone d\'abord.'); return; }
+    clearEditorDraw();
+    gtaMap.getContainer().classList.add('map-editor-active');
+  });
+
+  btnClear?.addEventListener('click', clearEditorDraw);
+
+  btnSave?.addEventListener('click', () => {
+    if (!editorZoneId || editorPoints.length < 3) {
+      alert('Tracez au moins 3 points avant de sauvegarder.'); return;
+    }
+    saveCustomZone(editorZoneId, [...editorPoints]);
+    const zone = GTA_ZONES.find(z => z.id === editorZoneId);
+    if (zone) zone.polygon = [...editorPoints];
+    alert(`Zone "${zone?.name}" sauvegardée !`);
+    clearEditorDraw();
+    refreshMapOverlays();
+  });
+}
+
+function clearEditorDraw() {
+  editorPoints = [];
+  editorMarkers.forEach(m => gtaMap?.removeLayer(m));
+  editorMarkers = [];
+  if (editorPreview) { gtaMap?.removeLayer(editorPreview); editorPreview = null; }
+  updateEditorCoordsOutput();
+  gtaMap?.getContainer().classList.remove('map-editor-active');
+}
 
 // ===== DATE DISPLAY =====
 function updateDate() {

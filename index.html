@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Coiled Cash — Gestion RP</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 </head>
@@ -110,6 +111,12 @@
           <a href="#" class="nav-item" data-section="vehicule">
             <span class="nav-icon">🚗</span>
             <span class="nav-label">Véhicule</span>
+          </a>
+        </li>
+        <li>
+          <a href="#" class="nav-item" data-section="territoires">
+            <span class="nav-icon">🗺️</span>
+            <span class="nav-label">Territoires</span>
           </a>
         </li>
         <li id="adminNavItem" style="display:none">
@@ -628,9 +635,43 @@
 
       </section>
 
+      <!-- Territoires -->
+      <section class="section" id="section-territoires">
+        <div class="section-header">
+          <h1><span class="section-icon">🗺️</span> Territoires</h1>
+          <p class="section-desc">Carte interactive de Los Santos et Blaine County.</p>
+        </div>
+
+        <div class="map-toolbar">
+          <div class="map-toolbar-left">
+            <span class="map-coord-display" id="mapCoordDisplay">Survolez la carte pour voir les coordonnées</span>
+          </div>
+          <div class="map-toolbar-right">
+            <button class="filter-btn" id="btnToggleEditor">✏️ Mode édition zones</button>
+            <div id="editorControls" style="display:none; display:contents">
+              <select id="editorZoneSelect" class="form-input form-select editor-zone-select" style="display:none"></select>
+              <button class="btn-assign" id="btnStartDraw" style="display:none">▶ Tracer</button>
+              <button class="btn-cancel" id="btnClearDraw" style="display:none">✕ Effacer</button>
+              <button class="btn-submit" id="btnSaveZone" style="display:none">💾 Sauvegarder</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="map-wrapper">
+          <div id="gtaMap"></div>
+        </div>
+
+        <div class="editor-coords-panel" id="editorCoordsPanel" style="display:none">
+          <span class="editor-coords-title">Points tracés :</span>
+          <code id="editorCoordsOutput">—</code>
+        </div>
+
+      </section>
+
     </main>
   </div>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="app.js"></script>
 </body>
 </html> 
