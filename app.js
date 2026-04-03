@@ -1498,14 +1498,12 @@ async function refreshDashboard() {
     }
 
     renderBalanceChart(txData);
-    renderMemberChart(txData, Array.isArray(mData) ? mData : []);
 
   } catch(e) { console.error('Dashboard error', e); }
 }
 
 // ===== GRAPHIQUES COMPTABILITÉ =====
 let chartBalanceInst = null;
-let chartMemberInst  = null;
 
 function renderBalanceChart(txData) {
   const canvas = document.getElementById('chartBalance');
@@ -1534,35 +1532,6 @@ function renderBalanceChart(txData) {
   });
 }
 
-function renderMemberChart(txData, members) {
-  const canvas = document.getElementById('chartByMember');
-  if (!canvas || !window.Chart) return;
-  if (chartMemberInst) chartMemberInst.destroy();
-
-  const totals = {};
-  txData.forEach(t => {
-    const name = t.member_name || 'Inconnu';
-    if (!totals[name]) totals[name] = { income: 0, expense: 0 };
-    if (t.type === 'entree') totals[name].income += t.amount;
-    else totals[name].expense += t.amount;
-  });
-
-  const labels = Object.keys(totals);
-  chartMemberInst = new Chart(canvas, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [
-        { label: 'Entrées',  data: labels.map(l => totals[l].income),  backgroundColor: 'rgba(76,175,130,0.7)' },
-        { label: 'Sorties',  data: labels.map(l => totals[l].expense), backgroundColor: 'rgba(229,115,115,0.7)' },
-      ],
-    },
-    options: { responsive: true,
-      plugins: { legend: { labels: { color:'#aaa' } } },
-      scales: { x: { ticks: { color:'#888' }, grid: { color:'#2a2a3a' } },
-                y: { ticks: { color:'#888' }, grid: { color:'#2a2a3a' } } } },
-  });
-}
 
 // ===== MISSIONS =====
 let missions      = [];
