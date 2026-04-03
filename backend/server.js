@@ -11,6 +11,7 @@ const summariesRoutes    = require('./routes/summaries');
 const vehiclesRoutes     = require('./routes/vehicles');
 const missionsRoutes     = require('./routes/missions');
 const adminRoutes        = require('./routes/admin');
+const { router: logsRoutes } = require('./routes/logs');
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
@@ -33,6 +34,7 @@ app.use('/api/summaries',    summariesRoutes);
 app.use('/api/vehicles',     vehiclesRoutes);
 app.use('/api/missions',     missionsRoutes);
 app.use('/api/admin',        adminRoutes);
+app.use('/api/logs',         logsRoutes);
 
 // ── Health check ──
 app.get('/api/health', (_, res) => res.json({ status: 'ok', time: new Date().toISOString() }));

@@ -1643,6 +1643,45 @@ body {
   align-items: center;
 }
 
+.btn-refresh {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: color .2s;
+}
+.btn-refresh:hover { color: var(--accent); }
+
+.logs-filter-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.log-action-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: .72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.log-action-créé      { background: rgba(76,175,130,.15); color: #4caf82; }
+.log-action-publié    { background: rgba(76,175,130,.15); color: #4caf82; }
+.log-action-ajouté    { background: rgba(76,175,130,.15); color: #4caf82; }
+.log-action-modifié   { background: rgba(100,150,255,.15); color: #7090ee; }
+.log-action-attribué  { background: rgba(255,180,60,.15);  color: #e0a020; }
+.log-action-statut    { background: rgba(255,180,60,.15);  color: #e0a020; }
+.log-action-supprimé  { background: rgba(220,60,60,.15);   color: #e05c5c; }
+.log-action-Entrée    { background: rgba(76,175,130,.15);  color: #4caf82; }
+.log-action-Sortie    { background: rgba(220,60,60,.15);   color: #e05c5c; }
+
 /* ===== TERRITOIRES — CARTE ===== */
 .map-toolbar {
   display: flex;

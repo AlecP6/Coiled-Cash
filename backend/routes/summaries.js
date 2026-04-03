@@ -1,11 +1,11 @@
-const express = require('express');
-const https   = require('https');
-const pool    = require('../db');
-const auth    = require('../middleware/authMiddleware');
+const express    = require('express');
+const https      = require('https');
+const pool       = require('../db');
+const auth       = require('../middleware/authMiddleware');
+const { addLog } = require('./logs');
 
 const router = express.Router();
 
-// Envoie un embed Discord via webhook (sans dépendance externe)
 function sendDiscordWebhook(summary) {
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
   if (!webhookUrl) return;
@@ -45,7 +45,7 @@ function sendDiscordWebhook(summary) {
   } catch {}
 }
 
-// GET /api/summaries — lecture par tous les membres connectés
+// GET /api/summaries
 router.get('/', auth, async (req, res) => {
   try {
     const result = await pool.query(`
@@ -80,8 +80,8 @@ router.post('/', auth, async (req, res) => {
     row.created_by_name = req.user.rp_name;
     res.status(201).json(row);
 
-    // Notification Discord (non bloquant)
     sendDiscordWebhook(row);
+    addLog(pool, { action: 'publié', entity_type: 'Résumé', entity_name: title.trim(), user_id: req.user.id, user_rp_name: req.user.rp_name });
   } catch (err) {
     console.error('Add summary error:', err);
     res.status(500).json({ error: 'Erreur serveur.' });
@@ -112,6 +112,8 @@ router.put('/:id', auth, async (req, res) => {
       WHERE s.id=$1
     `, [id]);
     res.json(full.rows[0]);
+
+    addLog(pool, { action: 'modifié', entity_type: 'Résumé', entity_name: title.trim(), user_id: req.user.id, user_rp_name: req.user.rp_name });
   } catch (err) {
     console.error('Update summary error:', err);
     res.status(500).json({ error: 'Erreur serveur.' });
@@ -124,9 +126,11 @@ router.delete('/:id', auth, async (req, res) => {
   if (isNaN(id)) return res.status(400).json({ error: 'ID invalide.' });
 
   try {
-    const result = await pool.query('DELETE FROM summaries WHERE id=$1 RETURNING id', [id]);
+    const result = await pool.query('DELETE FROM summaries WHERE id=$1 RETURNING title', [id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Résumé introuvable.' });
     res.json({ success: true, id });
+
+    addLog(pool, { action: 'supprimé', entity_type: 'Résumé', entity_name: result.rows[0].title, user_id: req.user.id, user_rp_name: req.user.rp_name });
   } catch (err) {
     console.error('Delete summary error:', err);
     res.status(500).json({ error: 'Erreur serveur.' });

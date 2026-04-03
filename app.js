@@ -224,6 +224,7 @@ function switchSection(targetId) {
     }
     if (targetId === 'admin') {
       fetchAdminUsers();
+      fetchLogs();
     }
     if (targetId === 'territoires') {
       fetchGroups();
@@ -1410,6 +1411,57 @@ document.getElementById('resetPwdCancel')?.addEventListener('click', () => close
 document.getElementById('resetPwdModal')?.addEventListener('click', (e) => {
   if (e.target === document.getElementById('resetPwdModal')) closeModal('resetPwdModal');
 });
+
+// ===== HISTORIQUE DES MODIFICATIONS =====
+let auditLogs   = [];
+let logFilter   = 'all';
+
+async function fetchLogs() {
+  const tbody = document.getElementById('logsTbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="6" class="admin-empty">Chargement...</td></tr>';
+  try {
+    const res  = await fetch(`${API}/logs`, { headers: authHeaders() });
+    const data = await res.json();
+    if (!res.ok) { tbody.innerHTML = `<tr><td colspan="6" class="admin-empty">${data.error}</td></tr>`; return; }
+    auditLogs = data;
+    renderLogs();
+  } catch {
+    tbody.innerHTML = '<tr><td colspan="6" class="admin-empty">Impossible de contacter le serveur.</td></tr>';
+  }
+}
+
+function renderLogs() {
+  const tbody = document.getElementById('logsTbody');
+  if (!tbody) return;
+  const list = logFilter === 'all' ? auditLogs : auditLogs.filter(l => l.entity_type === logFilter);
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="admin-empty">Aucune entrée.</td></tr>';
+    return;
+  }
+  const actionKey = (a) => a.replace(/\s+/g, '-');
+  tbody.innerHTML = list.map(l => `
+    <tr>
+      <td class="td-date">${new Date(l.created_at).toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric' })} ${new Date(l.created_at).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' })}</td>
+      <td>${escapeHtml(l.user_rp_name || '—')}</td>
+      <td><span class="log-action-badge log-action-${escapeHtml(actionKey(l.action))}">${escapeHtml(l.action)}</span></td>
+      <td>${escapeHtml(l.entity_type)}</td>
+      <td>${escapeHtml(l.entity_name || '—')}</td>
+      <td style="color:var(--text-2);font-size:.85rem">${escapeHtml(l.details || '')}</td>
+    </tr>`).join('');
+}
+
+// Filtres logs
+document.querySelectorAll('[data-lfilter]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-lfilter]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    logFilter = btn.dataset.lfilter;
+    renderLogs();
+  });
+});
+
+document.getElementById('btnRefreshLogs')?.addEventListener('click', fetchLogs);
 
 // ===== DASHBOARD =====
 async function refreshDashboard() {

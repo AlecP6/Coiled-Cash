@@ -1,6 +1,7 @@
-const express = require('express');
-const pool    = require('../db');
-const auth    = require('../middleware/authMiddleware');
+const express     = require('express');
+const pool        = require('../db');
+const auth        = require('../middleware/authMiddleware');
+const { addLog }  = require('./logs');
 
 const router = express.Router();
 
@@ -52,6 +53,8 @@ router.post('/', auth, async (req, res) => {
     row.created_by_name = req.user.rp_name;
     row.updated_by_name = req.user.rp_name;
     res.status(201).json(row);
+
+    addLog(pool, { action: 'créé', entity_type: 'Groupe', entity_name: name.trim(), user_id: req.user.id, user_rp_name: req.user.rp_name });
   } catch (err) {
     console.error('Add group error:', err);
     res.status(500).json({ error: 'Erreur serveur.' });
@@ -97,6 +100,8 @@ router.put('/:id', auth, async (req, res) => {
 
     if (full.rows.length === 0) return res.status(404).json({ error: 'Groupe introuvable.' });
     res.json(full.rows[0]);
+
+    addLog(pool, { action: 'modifié', entity_type: 'Groupe', entity_name: name.trim(), user_id: req.user.id, user_rp_name: req.user.rp_name });
   } catch (err) {
     console.error('Update group error:', err);
     res.status(500).json({ error: 'Erreur serveur.' });
@@ -109,9 +114,11 @@ router.delete('/:id', auth, async (req, res) => {
   if (isNaN(id)) return res.status(400).json({ error: 'ID invalide.' });
 
   try {
-    const result = await pool.query('DELETE FROM groups WHERE id=$1 RETURNING id', [id]);
+    const result = await pool.query('DELETE FROM groups WHERE id=$1 RETURNING name', [id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Groupe introuvable.' });
     res.json({ success: true, id });
+
+    addLog(pool, { action: 'supprimé', entity_type: 'Groupe', entity_name: result.rows[0].name, user_id: req.user.id, user_rp_name: req.user.rp_name });
   } catch (err) {
     console.error('Delete group error:', err);
     res.status(500).json({ error: 'Erreur serveur.' });

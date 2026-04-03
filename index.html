@@ -707,6 +707,38 @@
           </table>
         </div>
 
+        <!-- Historique des modifications -->
+        <div class="admin-users-card" style="margin-top:1.5rem">
+          <div class="admin-card-header">
+            <h2 class="form-title" style="margin:0">Historique des modifications</h2>
+            <button class="btn-refresh" id="btnRefreshLogs" title="Actualiser">↻</button>
+          </div>
+          <div class="logs-filter-bar">
+            <button class="filter-btn active" data-lfilter="all">Tout</button>
+            <button class="filter-btn" data-lfilter="Groupe">Groupes</button>
+            <button class="filter-btn" data-lfilter="Mission">Missions</button>
+            <button class="filter-btn" data-lfilter="Résumé">Résumés</button>
+            <button class="filter-btn" data-lfilter="Arme">Armes</button>
+            <button class="filter-btn" data-lfilter="Véhicule">Véhicules</button>
+            <button class="filter-btn" data-lfilter="Transaction">Transactions</button>
+          </div>
+          <table class="admin-table" id="logsTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Membre</th>
+                <th>Action</th>
+                <th>Catégorie</th>
+                <th>Élément</th>
+                <th>Détail</th>
+              </tr>
+            </thead>
+            <tbody id="logsTbody">
+              <tr><td colspan="6" class="admin-empty">Chargement...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
         <!-- Modal reset mot de passe -->
         <div class="modal-overlay" id="resetPwdModal">
           <div class="modal-box">

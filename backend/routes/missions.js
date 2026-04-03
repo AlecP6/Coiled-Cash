@@ -1,7 +1,8 @@
-const express = require('express');
-const pool    = require('../db');
-const auth    = require('../middleware/authMiddleware');
-const router  = express.Router();
+const express    = require('express');
+const pool       = require('../db');
+const auth       = require('../middleware/authMiddleware');
+const { addLog } = require('./logs');
+const router     = express.Router();
 
 // GET /api/missions
 router.get('/', auth, async (req, res) => {
@@ -28,6 +29,8 @@ router.post('/', auth, async (req, res) => {
     const row = rows[0];
     row.created_by_name = req.user.rp_name;
     res.status(201).json(row);
+
+    addLog(pool, { action: 'créé', entity_type: 'Mission', entity_name: title.trim(), user_id: req.user.id, user_rp_name: req.user.rp_name });
   } catch { res.status(500).json({ error: 'Erreur serveur.' }); }
 });
 
@@ -35,6 +38,7 @@ router.post('/', auth, async (req, res) => {
 router.patch('/:id/status', auth, async (req, res) => {
   const { status } = req.body;
   const valid = ['en_cours', 'termine', 'echoue'];
+  const labels = { en_cours: 'En cours', termine: 'Terminée', echoue: 'Échouée' };
   if (!valid.includes(status)) return res.status(400).json({ error: 'Statut invalide.' });
   try {
     const { rows } = await pool.query(
@@ -43,6 +47,8 @@ router.patch('/:id/status', auth, async (req, res) => {
     );
     if (!rows.length) return res.status(404).json({ error: 'Mission introuvable.' });
     res.json(rows[0]);
+
+    addLog(pool, { action: 'statut modifié', entity_type: 'Mission', entity_name: rows[0].title, user_id: req.user.id, user_rp_name: req.user.rp_name, details: `→ ${labels[status]}` });
   } catch { res.status(500).json({ error: 'Erreur serveur.' }); }
 });
 
@@ -57,15 +63,19 @@ router.put('/:id', auth, async (req, res) => {
     `, [title.trim(), description?.trim() || '', priority || 'normale', assigned_ids || '', req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Mission introuvable.' });
     res.json(rows[0]);
+
+    addLog(pool, { action: 'modifié', entity_type: 'Mission', entity_name: title.trim(), user_id: req.user.id, user_rp_name: req.user.rp_name });
   } catch { res.status(500).json({ error: 'Erreur serveur.' }); }
 });
 
 // DELETE /api/missions/:id
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const { rows } = await pool.query('DELETE FROM missions WHERE id=$1 RETURNING id', [req.params.id]);
+    const { rows } = await pool.query('DELETE FROM missions WHERE id=$1 RETURNING title', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Mission introuvable.' });
     res.json({ success: true });
+
+    addLog(pool, { action: 'supprimé', entity_type: 'Mission', entity_name: rows[0].title, user_id: req.user.id, user_rp_name: req.user.rp_name });
   } catch { res.status(500).json({ error: 'Erreur serveur.' }); }
 });
 
