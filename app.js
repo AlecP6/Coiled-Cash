@@ -161,14 +161,6 @@ document.getElementById('btnLogout')?.addEventListener('click', () => {
   showAuthOverlay();
 });
 
-// Restore session on load
-const saved = getStoredSession();
-if (saved) {
-  loginUser(saved.token, saved.user);
-} else {
-  showAuthOverlay();
-}
-
 // ===== NAVIGATION =====
 const navItems    = document.querySelectorAll('.nav-item');
 const sections    = document.querySelectorAll('.section');
@@ -186,6 +178,14 @@ const sectionTitles = {
   'admin':         'Administration',
 };
 
+// Restore session on load
+const saved = getStoredSession();
+if (saved) {
+  loginUser(saved.token, saved.user);
+} else {
+  showAuthOverlay();
+}
+
 function switchSection(targetId) {
   sections.forEach(s => s.classList.remove('active'));
   navItems.forEach(n => n.classList.remove('active'));
@@ -198,6 +198,9 @@ function switchSection(targetId) {
 
   // Chargement des données par section
   if (currentUser) {
+    if (targetId === 'comptabilite') {
+      refreshComptabilite();
+    }
     if (targetId === 'armement') {
       fetchWeapons();
       fetchMembers();
