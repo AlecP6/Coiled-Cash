@@ -1,6 +1,51 @@
 // ===== CONFIG =====
 const API = '/api';
 
+// ===== LOADING SCREEN =====
+function hideLoadingScreen() {
+  const el = document.getElementById('loadingScreen');
+  if (el) el.classList.add('hidden');
+}
+
+// ===== TOAST NOTIFICATIONS =====
+function showToast(message, type = 'success') {
+  const icons = { success: '✓', error: '✕', warning: '⚠' };
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.innerHTML = `<span class="toast-icon">${icons[type] || '•'}</span><span>${message}</span>`;
+  container.appendChild(toast);
+  requestAnimationFrame(() => { requestAnimationFrame(() => toast.classList.add('show')); });
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 350);
+  }, 3500);
+}
+
+// ===== CONFIRM MODAL =====
+let _confirmCallback = null;
+function confirmAction(message, callback, confirmLabel = 'Supprimer') {
+  document.getElementById('confirmMessage').textContent = message;
+  document.getElementById('btnConfirmYes').textContent = confirmLabel;
+  _confirmCallback = callback;
+  openModal('confirmModal');
+}
+document.getElementById('btnConfirmYes')?.addEventListener('click', () => {
+  closeModal('confirmModal');
+  if (_confirmCallback) { _confirmCallback(); _confirmCallback = null; }
+});
+document.getElementById('btnConfirmNo')?.addEventListener('click', () => {
+  closeModal('confirmModal');
+  _confirmCallback = null;
+});
+document.getElementById('confirmModal')?.addEventListener('click', (e) => {
+  if (e.target === document.getElementById('confirmModal')) {
+    closeModal('confirmModal');
+    _confirmCallback = null;
+  }
+});
+
 // ===== AUTH =====
 let currentUser = null;
 let authToken   = null;
@@ -182,8 +227,10 @@ const sectionTitles = {
 const saved = getStoredSession();
 if (saved) {
   loginUser(saved.token, saved.user);
+  setTimeout(hideLoadingScreen, 600);
 } else {
   showAuthOverlay();
+  hideLoadingScreen();
 }
 
 function switchSection(targetId) {
@@ -387,16 +434,17 @@ document.getElementById('btnAddTransaction')?.addEventListener('click', async ()
       body: JSON.stringify({ type, motif, amount: parseInt(amountRaw) }),
     });
     const data = await res.json();
-    if (!res.ok) { alert(data.error || 'Erreur.'); return; }
+    if (!res.ok) { showToast(data.error || 'Erreur.', 'error'); return; }
 
     transactions.unshift(data);
     updateStats();
     renderTransactions();
+    showToast('Transaction ajoutée avec succès.');
 
     document.getElementById('transactionAmount').value = '';
     document.getElementById('transactionMotif').value  = '';
   } catch {
-    alert('Impossible de contacter le serveur.');
+    showToast('Impossible de contacter le serveur.', 'error');
   } finally {
     btn.disabled    = false;
     btn.textContent = 'Ajouter la transaction';
@@ -430,8 +478,9 @@ document.getElementById('transactionsList')?.addEventListener('click', async (e)
     transactions = transactions.filter(t => t.id !== id);
     updateStats();
     renderTransactions();
+    showToast('Transaction supprimée.');
   } catch {
-    alert('Impossible de contacter le serveur.');
+    showToast('Impossible de contacter le serveur.', 'error');
   }
 });
 
@@ -581,14 +630,14 @@ document.getElementById('btnAddWeapon')?.addEventListener('click', async () => {
       body:    JSON.stringify({ name, category, notes }),
     });
     const data = await res.json();
-    if (!res.ok) { alert(data.error || 'Erreur.'); return; }
+    if (!res.ok) { showToast(data.error || 'Erreur.', 'error'); return; }
     weapons.unshift(data);
     updateWeaponStats();
     renderWeapons();
     document.getElementById('weaponName').value  = '';
     document.getElementById('weaponCategory').value = '';
     document.getElementById('weaponNotes').value = '';
-  } catch { alert('Impossible de contacter le serveur.'); }
+  } catch { showToast('Impossible de contacter le serveur.', 'error'); }
   finally { btn.disabled = false; btn.textContent = 'Ajouter l\'arme'; }
 });
 
@@ -620,7 +669,7 @@ async function deleteWeapon(id) {
     weapons = weapons.filter(w => w.id !== id);
     updateWeaponStats();
     renderWeapons();
-  } catch { alert('Impossible de contacter le serveur.'); }
+  } catch { showToast('Impossible de contacter le serveur.', 'error'); }
 }
 
 // Modal confirm assign
@@ -636,13 +685,13 @@ document.getElementById('btnConfirmAssign')?.addEventListener('click', async () 
       body:    JSON.stringify({ user_id: parsed }),
     });
     const data = await res.json();
-    if (!res.ok) { alert(data.error || 'Erreur.'); return; }
+    if (!res.ok) { showToast(data.error || 'Erreur.', 'error'); return; }
     const idx = weapons.findIndex(w => w.id === assignTarget);
     if (idx !== -1) weapons[idx] = data;
     updateWeaponStats();
     renderWeapons();
     closeModal('assignModal');
-  } catch { alert('Impossible de contacter le serveur.'); }
+  } catch { showToast('Impossible de contacter le serveur.', 'error'); }
 });
 
 // Modal helpers
@@ -865,6 +914,7 @@ document.getElementById('btnSaveGroup')?.addEventListener('click', async () => {
     renderGroups();
     refreshMapOverlays();
     closeModal('groupModal');
+    showToast(isEdit ? 'Groupe modifié.' : 'Groupe créé.');
   } catch {
     document.getElementById('groupError').textContent = 'Impossible de contacter le serveur.';
   } finally {
@@ -879,7 +929,7 @@ async function deleteGroup(id) {
     groups = groups.filter(g => g.id !== id);
     renderGroups();
     refreshMapOverlays();
-  } catch { alert('Impossible de contacter le serveur.'); }
+  } catch { showToast('Impossible de contacter le serveur.', 'error'); }
 }
 
 // Fermeture modal groupe
@@ -1089,7 +1139,7 @@ async function deleteSummary(id) {
     if (!res.ok) return;
     summaries = summaries.filter(s => s.id !== id);
     renderSummaries();
-  } catch { alert('Impossible de contacter le serveur.'); }
+  } catch { showToast('Impossible de contacter le serveur.', 'error'); }
 }
 
 // Fermeture modal résumé
@@ -1245,14 +1295,14 @@ document.getElementById('btnAddVehicle')?.addEventListener('click', async () => 
       body: JSON.stringify({ name, category, notes }),
     });
     const data = await res.json();
-    if (!res.ok) { alert(data.error || 'Erreur.'); return; }
+    if (!res.ok) { showToast(data.error || 'Erreur.', 'error'); return; }
     vehicles.unshift(data);
     updateVehicleStats();
     renderVehicles();
     document.getElementById('vehicleName').value     = '';
     document.getElementById('vehicleCategory').value = '';
     document.getElementById('vehicleNotes').value    = '';
-  } catch { alert('Impossible de contacter le serveur.'); }
+  } catch { showToast('Impossible de contacter le serveur.', 'error'); }
   finally { btn.disabled = false; btn.textContent = 'Ajouter le véhicule'; }
 });
 
@@ -1268,13 +1318,13 @@ document.getElementById('btnConfirmVehicleAssign')?.addEventListener('click', as
       body: JSON.stringify({ user_id: parsed }),
     });
     const data = await res.json();
-    if (!res.ok) { alert(data.error || 'Erreur.'); return; }
+    if (!res.ok) { showToast(data.error || 'Erreur.', 'error'); return; }
     const idx = vehicles.findIndex(v => v.id === vehicleAssignTarget);
     if (idx !== -1) vehicles[idx] = data;
     updateVehicleStats();
     renderVehicles();
     closeModal('vehicleAssignModal');
-  } catch { alert('Impossible de contacter le serveur.'); }
+  } catch { showToast('Impossible de contacter le serveur.', 'error'); }
 });
 
 async function deleteVehicle(id) {
@@ -1284,7 +1334,7 @@ async function deleteVehicle(id) {
     vehicles = vehicles.filter(v => v.id !== id);
     updateVehicleStats();
     renderVehicles();
-  } catch { alert('Impossible de contacter le serveur.'); }
+  } catch { showToast('Impossible de contacter le serveur.', 'error'); }
 }
 
 // Fermeture modal attribution véhicule
@@ -1380,11 +1430,14 @@ document.getElementById('adminUsersTbody')?.addEventListener('click', async (e) 
   // Supprimer
   const delBtn = e.target.closest('[data-admin-del]');
   if (delBtn) {
-    if (!confirm('Supprimer ce membre définitivement ?')) return;
-    try {
-      const res = await fetch(`${API}/admin/users/${delBtn.dataset.adminDel}`, { method: 'DELETE', headers: authHeaders() });
-      if (res.ok) fetchAdminUsers();
-    } catch {}
+    const userId = delBtn.dataset.adminDel;
+    confirmAction('Supprimer ce membre définitivement ? Cette action est irréversible.', async () => {
+      try {
+        const res = await fetch(`${API}/admin/users/${userId}`, { method: 'DELETE', headers: authHeaders() });
+        if (res.ok) { fetchAdminUsers(); showToast('Membre supprimé.', 'success'); }
+        else showToast('Erreur lors de la suppression.', 'error');
+      } catch { showToast('Impossible de contacter le serveur.', 'error'); }
+    });
   }
 });
 
@@ -1716,12 +1769,14 @@ document.getElementById('missionsGrid')?.addEventListener('click', async (e) => 
     openModal('missionModal');
   }
   if (delBtn) {
-    if (!confirm('Supprimer cette mission ?')) return;
     const id = Number(delBtn.dataset.missionDel);
-    try {
-      const res = await fetch(`${API}/missions/${id}`, { method:'DELETE', headers: authHeaders() });
-      if (res.ok) { missions = missions.filter(m => m.id !== id); renderMissions(); }
-    } catch {}
+    confirmAction('Supprimer cette mission ?', async () => {
+      try {
+        const res = await fetch(`${API}/missions/${id}`, { method:'DELETE', headers: authHeaders() });
+        if (res.ok) { missions = missions.filter(m => m.id !== id); renderMissions(); showToast('Mission supprimée.'); }
+        else showToast('Erreur lors de la suppression.', 'error');
+      } catch { showToast('Impossible de contacter le serveur.', 'error'); }
+    });
   }
 });
 
@@ -1764,6 +1819,7 @@ document.getElementById('btnSaveMission')?.addEventListener('click', async () =>
     else missions.unshift(data);
     renderMissions();
     closeModal('missionModal');
+    showToast(isEdit ? 'Mission modifiée.' : 'Mission créée.');
   } catch { errorEl.textContent = 'Impossible de contacter le serveur.'; }
   finally { btn.disabled = false; btn.textContent = 'Enregistrer'; }
 });
@@ -2042,7 +2098,7 @@ function initMapEditor() {
 
   btnStart?.addEventListener('click', () => {
     editorZoneId = zoneSelect?.value;
-    if (!editorZoneId) { alert('Choisissez une zone d\'abord.'); return; }
+    if (!editorZoneId) { showToast('Choisissez une zone d\'abord.', 'warning'); return; }
     clearEditorDraw();
     gtaMap.getContainer().classList.add('map-editor-active');
   });
@@ -2051,12 +2107,12 @@ function initMapEditor() {
 
   btnSave?.addEventListener('click', () => {
     if (!editorZoneId || editorPoints.length < 3) {
-      alert('Tracez au moins 3 points avant de sauvegarder.'); return;
+      showToast('Tracez au moins 3 points avant de sauvegarder.', 'warning'); return;
     }
     saveCustomZone(editorZoneId, [...editorPoints]);
     const zone = GTA_ZONES.find(z => z.id === editorZoneId);
     if (zone) zone.polygon = [...editorPoints];
-    alert(`Zone "${zone?.name}" sauvegardée !`);
+    showToast(`Zone "${zone?.name}" sauvegardée !`, 'success');
     clearEditorDraw();
     refreshMapOverlays();
   });
