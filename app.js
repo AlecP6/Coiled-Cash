@@ -1427,7 +1427,7 @@ async function refreshDashboard() {
       txRes.json(), wRes.json(), vRes.json(), gRes.json(), mRes.json(), missRes.json(),
     ]);
 
-    const balance  = txData.reduce((s, t) => s + (t.type === 'income' ? t.amount : -t.amount), 0);
+    const balance  = txData.reduce((s, t) => s + (t.type === 'entree' ? t.amount : -t.amount), 0);
     const missions = missData.filter ? missData.filter(m => m.status === 'en_cours') : [];
 
     document.getElementById('dashBalance').textContent  = formatAmount(balance);
@@ -1443,8 +1443,8 @@ async function refreshDashboard() {
       const recent = txData.slice(0, 6);
       txEl.innerHTML = recent.length ? recent.map(t => `
         <div class="dash-list-item">
-          <span class="dash-list-badge ${t.type === 'income' ? 'badge-income' : 'badge-expense'}">
-            ${t.type === 'income' ? '+' : '-'}${formatAmount(t.amount)}
+          <span class="dash-list-badge ${t.type === 'entree' ? 'badge-income' : 'badge-expense'}">
+            ${t.type === 'entree' ? '+' : '-'}${formatAmount(t.amount)}
           </span>
           <span class="dash-list-label">${escapeHtml(t.motif || '—')}</span>
           <span class="dash-list-sub">${escapeHtml(t.member_name || '—')}</span>
@@ -1516,7 +1516,7 @@ function renderBalanceChart(txData) {
   let running = 0;
   const labels = [], data = [];
   sorted.forEach(t => {
-    running += t.type === 'income' ? t.amount : -t.amount;
+    running += t.type === 'entree' ? t.amount : -t.amount;
     labels.push(new Date(t.created_at).toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' }));
     data.push(running);
   });
@@ -1543,7 +1543,7 @@ function renderMemberChart(txData, members) {
   txData.forEach(t => {
     const name = t.member_name || 'Inconnu';
     if (!totals[name]) totals[name] = { income: 0, expense: 0 };
-    if (t.type === 'income') totals[name].income += t.amount;
+    if (t.type === 'entree') totals[name].income += t.amount;
     else totals[name].expense += t.amount;
   });
 
@@ -1781,7 +1781,7 @@ async function openMemberProfile(memberId) {
     document.getElementById('profileTx').innerHTML = tx.length
       ? tx.map(t => `
         <div class="profile-item">
-          <span class="${t.type === 'income' ? 'dash-list-badge badge-income' : 'dash-list-badge badge-expense'}">${t.type==='income'?'+':'-'}${formatAmount(t.amount)}</span>
+          <span class="${t.type === 'entree' ? 'dash-list-badge badge-income' : 'dash-list-badge badge-expense'}">${t.type==='entree'?'+':'-'}${formatAmount(t.amount)}</span>
           <span>${escapeHtml(t.motif || '—')}</span>
           <span class="profile-item-sub">${new Date(t.created_at).toLocaleDateString('fr-FR')}</span>
         </div>`).join('')
