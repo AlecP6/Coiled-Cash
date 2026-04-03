@@ -84,7 +84,13 @@
     <nav class="sidebar-nav">
       <ul>
         <li>
-          <a href="#" class="nav-item active" data-section="comptabilite">
+          <a href="#" class="nav-item active" data-section="dashboard">
+            <span class="nav-icon">🏠</span>
+            <span class="nav-label">Dashboard</span>
+          </a>
+        </li>
+        <li>
+          <a href="#" class="nav-item" data-section="comptabilite">
             <span class="nav-icon">📊</span>
             <span class="nav-label">Comptabilité</span>
           </a>
@@ -119,6 +125,12 @@
             <span class="nav-label">Territoires</span>
           </a>
         </li>
+        <li>
+          <a href="#" class="nav-item" data-section="missions">
+            <span class="nav-icon">🎯</span>
+            <span class="nav-label">Missions</span>
+          </a>
+        </li>
         <li id="adminNavItem" style="display:none">
           <a href="#" class="nav-item" data-section="admin">
             <span class="nav-icon">🛡️</span>
@@ -130,7 +142,7 @@
 
     <div class="sidebar-footer">
       <img src="image.png" alt="Coiled Cash" class="sidebar-img" />
-      <span class="version">v1.0.0</span>
+      <span class="version">v1.1.0</span>
     </div>
   </aside>
 
@@ -156,8 +168,73 @@
     <!-- Content area -->
     <main class="content" id="mainContent">
 
+      <!-- Dashboard -->
+      <section class="section active" id="section-dashboard">
+        <div class="section-header">
+          <h1><span class="section-icon">🏠</span> Dashboard</h1>
+          <p class="section-desc">Vue d'ensemble de l'organisation.</p>
+        </div>
+        <div class="stats-grid" id="dashStats">
+          <div class="stat-card stat-balance">
+            <div class="stat-label">Solde total</div>
+            <div class="stat-value" id="dashBalance">$0</div>
+          </div>
+          <div class="stat-card stat-income">
+            <div class="stat-label">Armes en circulation</div>
+            <div class="stat-value" id="dashWeapons">0</div>
+          </div>
+          <div class="stat-card stat-expense">
+            <div class="stat-label">Véhicules en circulation</div>
+            <div class="stat-value" id="dashVehicles">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Groupes actifs</div>
+            <div class="stat-value" id="dashGroups">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Membres</div>
+            <div class="stat-value" id="dashMembers">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Missions en cours</div>
+            <div class="stat-value" id="dashMissions">0</div>
+          </div>
+        </div>
+
+        <div class="dash-grid">
+          <!-- Dernières transactions -->
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <h2>💸 Dernières transactions</h2>
+            </div>
+            <div id="dashRecentTx" class="dash-list"></div>
+          </div>
+          <!-- Dernier résumé -->
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <h2>📋 Dernier résumé publié</h2>
+            </div>
+            <div id="dashLastSummary" class="dash-summary-preview"></div>
+          </div>
+          <!-- Missions actives -->
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <h2>🎯 Missions actives</h2>
+            </div>
+            <div id="dashMissionsList" class="dash-list"></div>
+          </div>
+          <!-- Membres -->
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <h2>👥 Membres</h2>
+            </div>
+            <div id="dashMembersList" class="dash-list"></div>
+          </div>
+        </div>
+      </section>
+
       <!-- Comptabilité -->
-      <section class="section active" id="section-comptabilite">
+      <section class="section" id="section-comptabilite">
         <div class="section-header">
           <h1><span class="section-icon">📊</span> Comptabilité</h1>
           <p class="section-desc">Gestion des finances et transactions du groupe.</p>
@@ -217,6 +294,18 @@
           </div>
           <div class="form-actions">
             <button class="btn-submit" id="btnAddTransaction">Ajouter la transaction</button>
+          </div>
+        </div>
+
+        <!-- Graphiques -->
+        <div class="charts-row">
+          <div class="chart-card">
+            <h2 class="form-title">Évolution du solde</h2>
+            <canvas id="chartBalance"></canvas>
+          </div>
+          <div class="chart-card">
+            <h2 class="form-title">Par membre</h2>
+            <canvas id="chartByMember"></canvas>
           </div>
         </div>
 
@@ -679,10 +768,117 @@
 
       </section>
 
+      <!-- Missions -->
+      <section class="section" id="section-missions">
+        <div class="section-header">
+          <h1><span class="section-icon">🎯</span> Missions</h1>
+          <p class="section-desc">Suivi des missions et objectifs de l'organisation.</p>
+        </div>
+
+        <div class="groups-toolbar">
+          <div class="transactions-filters">
+            <button class="filter-btn active" data-mfilter="all">Toutes</button>
+            <button class="filter-btn" data-mfilter="en_cours">En cours</button>
+            <button class="filter-btn" data-mfilter="termine">Terminées</button>
+            <button class="filter-btn" data-mfilter="echoue">Échouées</button>
+          </div>
+          <button class="btn-submit" id="btnOpenAddMission">+ Nouvelle mission</button>
+        </div>
+
+        <div class="missions-grid" id="missionsGrid">
+          <div class="missions-empty" id="missionsEmpty">
+            <span>🎯</span>
+            <p>Aucune mission enregistrée pour l'instant.</p>
+          </div>
+        </div>
+
+        <!-- Modal ajout/édition mission -->
+        <div class="modal-overlay" id="missionModal">
+          <div class="modal-box modal-box-lg">
+            <div class="modal-header">
+              <h3 id="missionModalTitle">Nouvelle mission</h3>
+              <button class="modal-close" id="missionModalClose">✕</button>
+            </div>
+            <div class="modal-body">
+              <input type="hidden" id="missionEditId" />
+              <div class="summary-form-grid">
+                <div class="form-group">
+                  <label class="form-label" for="missionTitle">Titre de la mission</label>
+                  <input type="text" id="missionTitle" class="form-input" placeholder="ex: Éliminer la menace nord" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="missionPriority">Priorité</label>
+                  <select id="missionPriority" class="form-input form-select">
+                    <option value="basse">🟢 Basse</option>
+                    <option value="normale" selected>🟡 Normale</option>
+                    <option value="haute">🔴 Haute</option>
+                  </select>
+                </div>
+                <div class="form-group form-group-full">
+                  <label class="form-label" for="missionDesc">Description</label>
+                  <textarea id="missionDesc" class="form-input form-textarea" placeholder="Détails de la mission, objectifs, conditions de réussite..."></textarea>
+                </div>
+                <div class="form-group form-group-full">
+                  <label class="form-label">👥 Membres assignés</label>
+                  <div class="zone-selector" id="missionMembersSelector"></div>
+                </div>
+              </div>
+              <div class="auth-error" id="missionError"></div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-cancel" id="missionModalCancel">Annuler</button>
+              <button class="btn-submit" id="btnSaveMission">Enregistrer</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
     </main>
   </div>
 
+  <!-- Modal profil membre -->
+  <div class="modal-overlay" id="memberProfileModal">
+    <div class="modal-box modal-box-lg">
+      <div class="modal-header">
+        <h3 id="profileModalTitle">Profil membre</h3>
+        <button class="modal-close" id="profileModalClose">✕</button>
+      </div>
+      <div class="modal-body" id="profileModalBody">
+        <div class="profile-grid">
+          <div class="profile-info">
+            <div class="profile-avatar" id="profileAvatar"></div>
+            <div>
+              <div class="profile-rp-name" id="profileRpName"></div>
+              <div class="profile-username" id="profileUsername"></div>
+              <div class="profile-since" id="profileSince"></div>
+            </div>
+          </div>
+          <div class="profile-stats">
+            <div class="stat-card stat-balance"><div class="stat-label">Transactions</div><div class="stat-value" id="profileTxCount">0</div></div>
+            <div class="stat-card stat-income"><div class="stat-label">Armes</div><div class="stat-value" id="profileWeaponCount">0</div></div>
+            <div class="stat-card stat-expense"><div class="stat-label">Véhicules</div><div class="stat-value" id="profileVehicleCount">0</div></div>
+          </div>
+        </div>
+        <div class="profile-sections">
+          <div class="profile-section-block">
+            <h4>🔫 Armes attribuées</h4>
+            <div id="profileWeapons" class="profile-items"></div>
+          </div>
+          <div class="profile-section-block">
+            <h4>🚗 Véhicules attribués</h4>
+            <div id="profileVehicles" class="profile-items"></div>
+          </div>
+          <div class="profile-section-block profile-full">
+            <h4>💸 Dernières transactions</h4>
+            <div id="profileTx" class="profile-items"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html> 

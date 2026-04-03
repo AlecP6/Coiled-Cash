@@ -9,6 +9,7 @@ const membersRoutes      = require('./routes/members');
 const groupsRoutes       = require('./routes/groups');
 const summariesRoutes    = require('./routes/summaries');
 const vehiclesRoutes     = require('./routes/vehicles');
+const missionsRoutes     = require('./routes/missions');
 const adminRoutes        = require('./routes/admin');
 
 const app  = express();
@@ -30,6 +31,7 @@ app.use('/api/members',      membersRoutes);
 app.use('/api/groups',       groupsRoutes);
 app.use('/api/summaries',    summariesRoutes);
 app.use('/api/vehicles',     vehiclesRoutes);
+app.use('/api/missions',     missionsRoutes);
 app.use('/api/admin',        adminRoutes);
 
 // ── Health check ──

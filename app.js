@@ -144,10 +144,9 @@ function onUserLoggedIn(user) {
   const initials = user.rp_name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
   document.getElementById('userAvatar').textContent = initials;
   document.getElementById('userRpName').textContent = user.rp_name;
-  // Afficher l'onglet Admin si l'utilisateur est admin
   const adminNav = document.getElementById('adminNavItem');
   if (adminNav) adminNav.style.display = user.is_admin ? '' : 'none';
-  refreshComptabilite();
+  switchSection('dashboard');
 }
 
 // Logout
@@ -176,11 +175,13 @@ const sections    = document.querySelectorAll('.section');
 const topbarTitle = document.getElementById('topbarTitle');
 
 const sectionTitles = {
+  'dashboard':     'Dashboard',
   'comptabilite':  'Comptabilité',
   'armement':      'Armement',
   'groupes':       'Groupes',
   'resume-tables': 'Résumé Tables',
   'vehicule':      'Véhicule',
+  'missions':      'Missions',
   'territoires':   'Territoires',
   'admin':         'Administration',
 };
@@ -211,6 +212,12 @@ function switchSection(targetId) {
     if (targetId === 'vehicule') {
       fetchVehicles();
       fetchMembers();
+    }
+    if (targetId === 'dashboard') {
+      refreshDashboard();
+    }
+    if (targetId === 'missions') {
+      fetchMissions();
     }
     if (targetId === 'admin') {
       fetchAdminUsers();
@@ -1400,6 +1407,401 @@ document.getElementById('resetPwdCancel')?.addEventListener('click', () => close
 document.getElementById('resetPwdModal')?.addEventListener('click', (e) => {
   if (e.target === document.getElementById('resetPwdModal')) closeModal('resetPwdModal');
 });
+
+// ===== DASHBOARD =====
+async function refreshDashboard() {
+  try {
+    const [txRes, wRes, vRes, gRes, mRes, membRes, missRes] = await Promise.all([
+      fetch(`${API}/transactions`,  { headers: authHeaders() }),
+      fetch(`${API}/weapons`,       { headers: authHeaders() }),
+      fetch(`${API}/vehicles`,      { headers: authHeaders() }),
+      fetch(`${API}/groups`,        { headers: authHeaders() }),
+      fetch(`${API}/members`,       { headers: authHeaders() }),
+      fetch(`${API}/members`,       { headers: authHeaders() }),
+      fetch(`${API}/missions`,      { headers: authHeaders() }),
+    ]);
+    const [txData, wData, vData, gData, mData, missData] = await Promise.all([
+      txRes.json(), wRes.json(), vRes.json(), gRes.json(), mRes.json(), missRes.json(),
+    ]);
+
+    const balance  = txData.reduce((s, t) => s + (t.type === 'income' ? t.amount : -t.amount), 0);
+    const missions = missData.filter ? missData.filter(m => m.status === 'en_cours') : [];
+
+    document.getElementById('dashBalance').textContent  = formatAmount(balance);
+    document.getElementById('dashWeapons').textContent  = Array.isArray(wData)   ? wData.length   : 0;
+    document.getElementById('dashVehicles').textContent = Array.isArray(vData)   ? vData.length   : 0;
+    document.getElementById('dashGroups').textContent   = Array.isArray(gData)   ? gData.length   : 0;
+    document.getElementById('dashMembers').textContent  = Array.isArray(mData)   ? mData.length   : 0;
+    document.getElementById('dashMissions').textContent = missions.length;
+
+    // Dernières transactions
+    const txEl = document.getElementById('dashRecentTx');
+    if (txEl) {
+      const recent = txData.slice(0, 6);
+      txEl.innerHTML = recent.length ? recent.map(t => `
+        <div class="dash-list-item">
+          <span class="dash-list-badge ${t.type === 'income' ? 'badge-income' : 'badge-expense'}">
+            ${t.type === 'income' ? '+' : '-'}${formatAmount(t.amount)}
+          </span>
+          <span class="dash-list-label">${escapeHtml(t.motif || '—')}</span>
+          <span class="dash-list-sub">${escapeHtml(t.member_name || '—')}</span>
+        </div>`).join('')
+        : '<p class="dash-empty">Aucune transaction.</p>';
+    }
+
+    // Dernier résumé
+    const summEl = document.getElementById('dashLastSummary');
+    if (summEl) {
+      const last = txData.length ? null : null; // On utilise summaries
+      const summRes = await fetch(`${API}/summaries`, { headers: authHeaders() });
+      const summData = await summRes.json();
+      if (summData.length) {
+        const s = summData[0];
+        summEl.innerHTML = `
+          <div class="dash-summary-title">${escapeHtml(s.title)}</div>
+          <div class="dash-summary-date">📅 ${formatEventDate(s.event_date)} — ${escapeHtml(s.created_by_name || '—')}</div>
+          <div class="dash-summary-content">${escapeHtml(s.content.slice(0, 200))}${s.content.length > 200 ? '…' : ''}</div>`;
+      } else {
+        summEl.innerHTML = '<p class="dash-empty">Aucun résumé publié.</p>';
+      }
+    }
+
+    // Missions actives
+    const missEl = document.getElementById('dashMissionsList');
+    if (missEl) {
+      missEl.innerHTML = missions.length ? missions.slice(0, 4).map(m => `
+        <div class="dash-list-item">
+          <span class="mission-priority-dot priority-${m.priority}"></span>
+          <span class="dash-list-label">${escapeHtml(m.title)}</span>
+        </div>`).join('')
+        : '<p class="dash-empty">Aucune mission active.</p>';
+    }
+
+    // Membres
+    const membEl = document.getElementById('dashMembersList');
+    if (membEl && Array.isArray(mData)) {
+      membEl.innerHTML = mData.map(m => `
+        <div class="dash-list-item dash-member-item" data-member-id="${m.id}" style="cursor:pointer">
+          <span class="dash-member-avatar">${m.rp_name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)}</span>
+          <div>
+            <div class="dash-list-label">${escapeHtml(m.rp_name)}</div>
+            <div class="dash-list-sub">@${escapeHtml(m.username)}</div>
+          </div>
+        </div>`).join('');
+
+      membEl.querySelectorAll('.dash-member-item').forEach(el => {
+        el.addEventListener('click', () => openMemberProfile(Number(el.dataset.memberId)));
+      });
+    }
+
+    renderBalanceChart(txData);
+    renderMemberChart(txData, Array.isArray(mData) ? mData : []);
+
+  } catch(e) { console.error('Dashboard error', e); }
+}
+
+// ===== GRAPHIQUES COMPTABILITÉ =====
+let chartBalanceInst = null;
+let chartMemberInst  = null;
+
+function renderBalanceChart(txData) {
+  const canvas = document.getElementById('chartBalance');
+  if (!canvas || !window.Chart) return;
+  if (chartBalanceInst) chartBalanceInst.destroy();
+
+  const sorted = [...txData].sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+  let running = 0;
+  const labels = [], data = [];
+  sorted.forEach(t => {
+    running += t.type === 'income' ? t.amount : -t.amount;
+    labels.push(new Date(t.created_at).toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' }));
+    data.push(running);
+  });
+
+  chartBalanceInst = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{ label: 'Solde', data, borderColor: '#4caf82', backgroundColor: 'rgba(76,175,130,0.1)',
+        tension: 0.3, fill: true, pointRadius: 3 }],
+    },
+    options: { responsive: true, plugins: { legend: { display: false } },
+      scales: { x: { ticks: { color:'#888', maxTicksLimit: 8 }, grid: { color:'#2a2a3a' } },
+                y: { ticks: { color:'#888' }, grid: { color:'#2a2a3a' } } } },
+  });
+}
+
+function renderMemberChart(txData, members) {
+  const canvas = document.getElementById('chartByMember');
+  if (!canvas || !window.Chart) return;
+  if (chartMemberInst) chartMemberInst.destroy();
+
+  const totals = {};
+  txData.forEach(t => {
+    const name = t.member_name || 'Inconnu';
+    if (!totals[name]) totals[name] = { income: 0, expense: 0 };
+    if (t.type === 'income') totals[name].income += t.amount;
+    else totals[name].expense += t.amount;
+  });
+
+  const labels = Object.keys(totals);
+  chartMemberInst = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Entrées',  data: labels.map(l => totals[l].income),  backgroundColor: 'rgba(76,175,130,0.7)' },
+        { label: 'Sorties',  data: labels.map(l => totals[l].expense), backgroundColor: 'rgba(229,115,115,0.7)' },
+      ],
+    },
+    options: { responsive: true,
+      plugins: { legend: { labels: { color:'#aaa' } } },
+      scales: { x: { ticks: { color:'#888' }, grid: { color:'#2a2a3a' } },
+                y: { ticks: { color:'#888' }, grid: { color:'#2a2a3a' } } } },
+  });
+}
+
+// ===== MISSIONS =====
+let missions      = [];
+let missionFilter = 'all';
+
+const MISSION_STATUS_LABELS = { en_cours: '⏳ En cours', termine: '✅ Terminée', echoue: '❌ Échouée' };
+const MISSION_PRIORITY_LABELS = { basse: '🟢 Basse', normale: '🟡 Normale', haute: '🔴 Haute' };
+
+async function fetchMissions() {
+  try {
+    const res  = await fetch(`${API}/missions`, { headers: authHeaders() });
+    const data = await res.json();
+    if (!res.ok) return;
+    missions = data;
+    renderMissions();
+  } catch { console.error('Erreur chargement missions.'); }
+}
+
+function getFilteredMissions() {
+  if (missionFilter === 'all') return missions;
+  return missions.filter(m => m.status === missionFilter);
+}
+
+function buildMissionMembersSelector(selectedIds = []) {
+  const container = document.getElementById('missionMembersSelector');
+  if (!container) return;
+  container.innerHTML = '';
+  members.forEach(m => {
+    const chip = document.createElement('span');
+    chip.className   = 'zone-chip' + (selectedIds.includes(String(m.id)) ? ' selected' : '');
+    chip.textContent = m.rp_name;
+    chip.dataset.mid = m.id;
+    chip.addEventListener('click', () => chip.classList.toggle('selected'));
+    container.appendChild(chip);
+  });
+}
+
+function getSelectedMissionMembers() {
+  return Array.from(document.querySelectorAll('#missionMembersSelector .zone-chip.selected'))
+    .map(c => c.dataset.mid).join(',');
+}
+
+function getMemberNames(ids) {
+  if (!ids) return '';
+  return ids.split(',').filter(Boolean).map(id => {
+    const m = members.find(m => String(m.id) === id);
+    return m ? m.rp_name : id;
+  }).join(', ');
+}
+
+function renderMissions() {
+  const grid  = document.getElementById('missionsGrid');
+  const empty = document.getElementById('missionsEmpty');
+  const list  = getFilteredMissions();
+  Array.from(grid.querySelectorAll('.mission-card')).forEach(c => c.remove());
+  if (list.length === 0) { empty.style.display = ''; return; }
+  empty.style.display = 'none';
+
+  list.forEach(m => {
+    const card = document.createElement('div');
+    card.className = `mission-card status-${m.status}`;
+    card.innerHTML = `
+      <div class="mission-card-header">
+        <div class="mission-card-title-row">
+          <span class="mission-priority-dot priority-${m.priority}"></span>
+          <span class="mission-card-title">${escapeHtml(m.title)}</span>
+        </div>
+        <div class="mission-card-badges">
+          <span class="mission-status-badge status-badge-${m.status}">${MISSION_STATUS_LABELS[m.status]}</span>
+          ${currentUser?.id === m.created_by ? `
+            <button class="btn-edit" data-mission-edit="${m.id}">✏️</button>
+            <button class="btn-delete" data-mission-del="${m.id}">✕</button>
+          ` : ''}
+        </div>
+      </div>
+      ${m.description ? `<div class="mission-card-desc">${escapeHtml(m.description)}</div>` : ''}
+      ${m.assigned_ids ? `<div class="mission-card-members">👥 ${escapeHtml(getMemberNames(m.assigned_ids))}</div>` : ''}
+      <div class="mission-card-footer">
+        <span>Par ${escapeHtml(m.created_by_name || '—')}</span>
+        <div class="mission-status-controls">
+          <select class="mission-status-select form-input form-select" data-mission-status="${m.id}">
+            <option value="en_cours"  ${m.status==='en_cours'  ? 'selected':''}>⏳ En cours</option>
+            <option value="termine"   ${m.status==='termine'   ? 'selected':''}>✅ Terminée</option>
+            <option value="echoue"    ${m.status==='echoue'    ? 'selected':''}>❌ Échouée</option>
+          </select>
+        </div>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+// Filtres missions
+document.querySelectorAll('[data-mfilter]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-mfilter]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    missionFilter = btn.dataset.mfilter;
+    renderMissions();
+  });
+});
+
+// Ouvrir modal ajout
+document.getElementById('btnOpenAddMission')?.addEventListener('click', () => {
+  document.getElementById('missionModalTitle').textContent = 'Nouvelle mission';
+  document.getElementById('missionEditId').value  = '';
+  document.getElementById('missionTitle').value   = '';
+  document.getElementById('missionDesc').value    = '';
+  document.getElementById('missionPriority').value = 'normale';
+  document.getElementById('missionError').textContent = '';
+  buildMissionMembersSelector();
+  openModal('missionModal');
+});
+
+// Clic grille missions
+document.getElementById('missionsGrid')?.addEventListener('click', async (e) => {
+  const editBtn = e.target.closest('[data-mission-edit]');
+  const delBtn  = e.target.closest('[data-mission-del]');
+  const selEl   = e.target.closest('[data-mission-status]');
+
+  if (editBtn) {
+    const m = missions.find(m => m.id === Number(editBtn.dataset.missionEdit));
+    if (!m) return;
+    document.getElementById('missionModalTitle').textContent = 'Modifier la mission';
+    document.getElementById('missionEditId').value   = m.id;
+    document.getElementById('missionTitle').value    = m.title;
+    document.getElementById('missionDesc').value     = m.description || '';
+    document.getElementById('missionPriority').value = m.priority;
+    document.getElementById('missionError').textContent = '';
+    buildMissionMembersSelector(m.assigned_ids ? m.assigned_ids.split(',') : []);
+    openModal('missionModal');
+  }
+  if (delBtn) {
+    if (!confirm('Supprimer cette mission ?')) return;
+    const id = Number(delBtn.dataset.missionDel);
+    try {
+      const res = await fetch(`${API}/missions/${id}`, { method:'DELETE', headers: authHeaders() });
+      if (res.ok) { missions = missions.filter(m => m.id !== id); renderMissions(); }
+    } catch {}
+  }
+});
+
+// Changement statut via select
+document.getElementById('missionsGrid')?.addEventListener('change', async (e) => {
+  const sel = e.target.closest('[data-mission-status]');
+  if (!sel) return;
+  const id = Number(sel.dataset.missionStatus);
+  try {
+    const res  = await fetch(`${API}/missions/${id}/status`, {
+      method:'PATCH', headers: authHeaders(), body: JSON.stringify({ status: sel.value }),
+    });
+    const data = await res.json();
+    if (res.ok) { const idx = missions.findIndex(m => m.id === id); if (idx !== -1) missions[idx] = data; renderMissions(); }
+  } catch {}
+});
+
+// Sauvegarder mission
+document.getElementById('btnSaveMission')?.addEventListener('click', async () => {
+  const id          = document.getElementById('missionEditId').value;
+  const title       = document.getElementById('missionTitle').value.trim();
+  const description = document.getElementById('missionDesc').value.trim();
+  const priority    = document.getElementById('missionPriority').value;
+  const assigned_ids = getSelectedMissionMembers();
+  const errorEl     = document.getElementById('missionError');
+  errorEl.textContent = '';
+  if (!title) { errorEl.textContent = 'Le titre est requis.'; return; }
+
+  const isEdit = id !== '';
+  const url    = isEdit ? `${API}/missions/${id}` : `${API}/missions`;
+  const method = isEdit ? 'PUT' : 'POST';
+  const btn    = document.getElementById('btnSaveMission');
+  btn.disabled = true; btn.textContent = 'Enregistrement...';
+
+  try {
+    const res  = await fetch(url, { method, headers: authHeaders(), body: JSON.stringify({ title, description, priority, assigned_ids }) });
+    const data = await res.json();
+    if (!res.ok) { errorEl.textContent = data.error || 'Erreur.'; return; }
+    if (isEdit) { const idx = missions.findIndex(m => m.id === Number(id)); if (idx !== -1) missions[idx] = data; }
+    else missions.unshift(data);
+    renderMissions();
+    closeModal('missionModal');
+  } catch { errorEl.textContent = 'Impossible de contacter le serveur.'; }
+  finally { btn.disabled = false; btn.textContent = 'Enregistrer'; }
+});
+
+document.getElementById('missionModalClose')?.addEventListener('click',  () => closeModal('missionModal'));
+document.getElementById('missionModalCancel')?.addEventListener('click', () => closeModal('missionModal'));
+document.getElementById('missionModal')?.addEventListener('click', (e) => {
+  if (e.target === document.getElementById('missionModal')) closeModal('missionModal');
+});
+
+// ===== PROFIL MEMBRE =====
+async function openMemberProfile(memberId) {
+  try {
+    const res  = await fetch(`${API}/members/${memberId}/profile`, { headers: authHeaders() });
+    const data = await res.json();
+    if (!res.ok) return;
+    const { user, weapons: w, vehicles: v, transactions: tx } = data;
+
+    document.getElementById('profileModalTitle').textContent = user.rp_name;
+    document.getElementById('profileRpName').textContent     = user.rp_name;
+    document.getElementById('profileUsername').textContent   = `@${user.username}`;
+    document.getElementById('profileSince').textContent      = `Membre depuis le ${new Date(user.created_at).toLocaleDateString('fr-FR')}`;
+    document.getElementById('profileAvatar').textContent     = user.rp_name.split(' ').map(x=>x[0]).join('').toUpperCase().slice(0,2);
+    document.getElementById('profileTxCount').textContent    = tx.length;
+    document.getElementById('profileWeaponCount').textContent  = w.length;
+    document.getElementById('profileVehicleCount').textContent = v.length;
+
+    document.getElementById('profileWeapons').innerHTML = w.length
+      ? w.map(x => `<div class="profile-item"><span>${escapeHtml(x.name)}</span><span class="profile-item-sub">${escapeHtml(x.category)}</span></div>`).join('')
+      : '<p class="dash-empty">Aucune arme attribuée.</p>';
+
+    document.getElementById('profileVehicles').innerHTML = v.length
+      ? v.map(x => `<div class="profile-item"><span>${escapeHtml(x.name)}</span><span class="profile-item-sub">${escapeHtml(x.category)}</span></div>`).join('')
+      : '<p class="dash-empty">Aucun véhicule attribué.</p>';
+
+    document.getElementById('profileTx').innerHTML = tx.length
+      ? tx.map(t => `
+        <div class="profile-item">
+          <span class="${t.type === 'income' ? 'dash-list-badge badge-income' : 'dash-list-badge badge-expense'}">${t.type==='income'?'+':'-'}${formatAmount(t.amount)}</span>
+          <span>${escapeHtml(t.motif || '—')}</span>
+          <span class="profile-item-sub">${new Date(t.created_at).toLocaleDateString('fr-FR')}</span>
+        </div>`).join('')
+      : '<p class="dash-empty">Aucune transaction.</p>';
+
+    openModal('memberProfileModal');
+  } catch { console.error('Erreur profil membre.'); }
+}
+
+document.getElementById('profileModalClose')?.addEventListener('click', () => closeModal('memberProfileModal'));
+document.getElementById('memberProfileModal')?.addEventListener('click', (e) => {
+  if (e.target === document.getElementById('memberProfileModal')) closeModal('memberProfileModal');
+});
+
+// Clic sur membres dans le tableau admin
+document.getElementById('adminUsersTbody')?.addEventListener('click', (e) => {
+  const rpName = e.target.closest('tr')?.querySelector('.admin-username');
+  if (rpName && !e.target.closest('button')) {
+    const row = e.target.closest('tr');
+    const id  = adminUsers.find(u => u.username === rpName.textContent)?.id;
+    if (id) openMemberProfile(id);
+  }
+}, true);
 
 // ===== TERRITOIRES — CARTE GTA 5 =====
 const GTA_ZONES = [
