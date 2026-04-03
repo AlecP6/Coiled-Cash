@@ -2127,6 +2127,34 @@ function clearEditorDraw() {
   gtaMap?.getContainer().classList.remove('map-editor-active');
 }
 
+// ===== EXPORT ZONES =====
+document.getElementById('btnExportZones')?.addEventListener('click', () => {
+  const raw   = localStorage.getItem('cc_custom_zones');
+  const data  = raw ? JSON.parse(raw) : [];
+  const textarea = document.getElementById('exportZonesData');
+  if (!textarea) return;
+  if (data.length === 0) {
+    showToast('Aucun tracé personnalisé trouvé dans ce navigateur.', 'warning');
+    return;
+  }
+  textarea.value = JSON.stringify(data, null, 2);
+  openModal('exportZonesModal');
+});
+
+document.getElementById('btnCopyZones')?.addEventListener('click', () => {
+  const ta = document.getElementById('exportZonesData');
+  if (!ta) return;
+  ta.select();
+  navigator.clipboard?.writeText(ta.value)
+    .then(() => showToast('Tracés copiés dans le presse-papier !'))
+    .catch(() => showToast('Sélectionne le texte et fais Ctrl+C manuellement.', 'warning'));
+});
+
+document.getElementById('exportZonesClose')?.addEventListener('click', () => closeModal('exportZonesModal'));
+document.getElementById('exportZonesModal')?.addEventListener('click', (e) => {
+  if (e.target === document.getElementById('exportZonesModal')) closeModal('exportZonesModal');
+});
+
 // ===== DATE DISPLAY =====
 function updateDate() {
   const now     = new Date();

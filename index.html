@@ -803,6 +803,7 @@
             <span class="map-coord-display" id="mapCoordDisplay">Survolez la carte pour voir les coordonnées</span>
           </div>
           <div class="map-toolbar-right">
+            <button class="filter-btn" id="btnExportZones" title="Exporter mes tracés">📤 Exporter zones</button>
             <button class="filter-btn" id="btnToggleEditor">✏️ Mode édition zones</button>
             <div id="editorControls" style="display:none; display:contents">
               <select id="editorZoneSelect" class="form-input form-select editor-zone-select" style="display:none"></select>
@@ -815,6 +816,23 @@
 
         <div class="map-wrapper">
           <div id="gtaMap"></div>
+        </div>
+
+        <!-- Modal export zones -->
+        <div class="modal-overlay" id="exportZonesModal">
+          <div class="modal-box modal-box-lg">
+            <div class="modal-header">
+              <h3>📤 Exporter mes tracés</h3>
+              <button class="modal-close" id="exportZonesClose">✕</button>
+            </div>
+            <div class="modal-body">
+              <p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px">Sélectionne tout le texte ci-dessous (Ctrl+A) puis copie-le (Ctrl+C) et envoie-le.</p>
+              <textarea id="exportZonesData" class="form-input form-textarea-lg" readonly style="font-size:11px;font-family:monospace;height:260px"></textarea>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-submit" id="btnCopyZones">📋 Copier</button>
+            </div>
+          </div>
         </div>
 
         <div class="editor-coords-panel" id="editorCoordsPanel" style="display:none">
