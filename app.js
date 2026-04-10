@@ -1,6 +1,34 @@
 // ===== CONFIG =====
 const API = '/api';
 
+// ===== ANIMATIONS UTILITAIRES =====
+function applyStagger(grid) {
+  const cards = grid.querySelectorAll('.weapon-card, .group-card, .mission-card');
+  cards.forEach((el, i) => {
+    el.style.opacity = '0';
+    el.style.animation = 'none';
+    requestAnimationFrame(() => {
+      el.style.animation = `fadeIn 0.35s cubic-bezier(.22,1,.36,1) ${i * 55}ms forwards`;
+    });
+  });
+}
+
+function animateCounter(el, target, formatter = null) {
+  const num = parseFloat(String(target).replace(/[^0-9.-]/g, ''));
+  if (isNaN(num)) { el.textContent = formatter ? formatter(target) : target; return; }
+  const start = performance.now();
+  const duration = 650;
+  const step = (now) => {
+    const progress = Math.min((now - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const current = Math.floor(eased * num);
+    el.textContent = formatter ? formatter(current) : current;
+    if (progress < 1) requestAnimationFrame(step);
+    else el.textContent = formatter ? formatter(num) : num;
+  };
+  requestAnimationFrame(step);
+}
+
 // ===== LOADING SCREEN =====
 function hideLoadingScreen() {
   const el = document.getElementById('loadingScreen');
@@ -341,10 +369,10 @@ function updateStats() {
   const total_out = transactions.filter(t => t.type === 'sortie').reduce((s, t) => s + Number(t.amount), 0);
   const balance   = total_in - total_out;
 
-  document.getElementById('statBalance').textContent = formatAmount(balance);
-  document.getElementById('statIncome').textContent  = formatAmount(total_in);
-  document.getElementById('statExpense').textContent = formatAmount(total_out);
-  document.getElementById('statCount').textContent   = transactions.length;
+  animateCounter(document.getElementById('statBalance'), balance, formatAmount);
+  animateCounter(document.getElementById('statIncome'),  total_in,  formatAmount);
+  animateCounter(document.getElementById('statExpense'), total_out, formatAmount);
+  animateCounter(document.getElementById('statCount'),   transactions.length);
 
   document.getElementById('statBalance').style.color = balance < 0 ? '#e05c5c' : 'var(--accent)';
 }
@@ -531,9 +559,9 @@ async function fetchMembers() {
 function updateWeaponStats() {
   const total    = weapons.length;
   const assigned = weapons.filter(w => w.assigned_to).length;
-  document.getElementById('weaponStatTotal').textContent    = total;
-  document.getElementById('weaponStatAssigned').textContent = assigned;
-  document.getElementById('weaponStatFree').textContent     = total - assigned;
+  animateCounter(document.getElementById('weaponStatTotal'),    total);
+  animateCounter(document.getElementById('weaponStatAssigned'), assigned);
+  animateCounter(document.getElementById('weaponStatFree'),     total - assigned);
 }
 
 function getFilteredWeapons() {
@@ -596,6 +624,7 @@ function renderWeapons() {
     `;
     grid.appendChild(card);
   });
+  applyStagger(grid);
 }
 
 function populateAssignSelect() {
@@ -807,6 +836,7 @@ function renderGroups() {
     `;
     grid.appendChild(card);
   });
+  applyStagger(grid);
 }
 
 // Ouvrir modal en mode ajout
@@ -1184,9 +1214,9 @@ async function fetchVehicles() {
 function updateVehicleStats() {
   const total    = vehicles.length;
   const assigned = vehicles.filter(v => v.assigned_to).length;
-  document.getElementById('vehicleStatTotal').textContent    = total;
-  document.getElementById('vehicleStatAssigned').textContent = assigned;
-  document.getElementById('vehicleStatFree').textContent     = total - assigned;
+  animateCounter(document.getElementById('vehicleStatTotal'),    total);
+  animateCounter(document.getElementById('vehicleStatAssigned'), assigned);
+  animateCounter(document.getElementById('vehicleStatFree'),     total - assigned);
 }
 
 function getFilteredVehicles() {
@@ -1538,12 +1568,12 @@ async function refreshDashboard() {
     const balance  = txData.reduce((s, t) => s + (t.type === 'entree' ? t.amount : -t.amount), 0);
     const missions = missData.filter ? missData.filter(m => m.status === 'en_cours') : [];
 
-    document.getElementById('dashBalance').textContent  = formatAmount(balance);
-    document.getElementById('dashWeapons').textContent  = Array.isArray(wData)   ? wData.length   : 0;
-    document.getElementById('dashVehicles').textContent = Array.isArray(vData)   ? vData.length   : 0;
-    document.getElementById('dashGroups').textContent   = Array.isArray(gData)   ? gData.length   : 0;
-    document.getElementById('dashMembers').textContent  = Array.isArray(mData)   ? mData.length   : 0;
-    document.getElementById('dashMissions').textContent = missions.length;
+    animateCounter(document.getElementById('dashBalance'),  balance,                            formatAmount);
+    animateCounter(document.getElementById('dashWeapons'),  Array.isArray(wData) ? wData.length : 0);
+    animateCounter(document.getElementById('dashVehicles'), Array.isArray(vData) ? vData.length : 0);
+    animateCounter(document.getElementById('dashGroups'),   Array.isArray(gData) ? gData.length : 0);
+    animateCounter(document.getElementById('dashMembers'),  Array.isArray(mData) ? mData.length : 0);
+    animateCounter(document.getElementById('dashMissions'), missions.length);
 
     // Dernières transactions
     const txEl = document.getElementById('dashRecentTx');
@@ -1729,6 +1759,7 @@ function renderMissions() {
       </div>`;
     grid.appendChild(card);
   });
+  applyStagger(grid);
 }
 
 // Filtres missions

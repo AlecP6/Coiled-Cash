@@ -5,6 +5,13 @@
   padding: 0;
 }
 
+/* ===== SCROLLBAR PERSONNALISEE ===== */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg-dark); }
+::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; transition: background 0.2s; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+* { scrollbar-width: thin; scrollbar-color: var(--border-light) var(--bg-dark); }
+
 :root {
   --bg-dark:       #080c08;
   --bg-surface:    #0d120d;
@@ -272,6 +279,12 @@ body {
   background: linear-gradient(180deg, #88dd44, var(--accent));
   border-radius: 0 3px 3px 0;
   box-shadow: 0 0 8px var(--accent-glow);
+  animation: navGlow 2.5s ease-in-out infinite;
+}
+
+@keyframes navGlow {
+  0%, 100% { box-shadow: 0 0 6px var(--accent-glow); }
+  50%       { box-shadow: 0 0 16px var(--accent-glow), 0 0 4px var(--accent); }
 }
 
 .nav-icon {
@@ -383,15 +396,15 @@ body {
 /* ===== SECTIONS ===== */
 .section {
   display: none;
-  animation: fadeIn 0.25s ease;
 }
 
 .section.active {
   display: block;
+  animation: fadeIn 0.35s cubic-bezier(.22,1,.36,1);
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
@@ -551,7 +564,7 @@ body {
 
 .auth-input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-dim);
+  box-shadow: 0 0 0 3px var(--accent-dim), 0 2px 8px rgba(0,0,0,0.25);
 }
 
 .auth-input::placeholder {
@@ -580,6 +593,21 @@ body {
   margin-top: 4px;
   box-shadow: 0 3px 16px rgba(93,184,42,0.4);
   transition: all var(--transition);
+  overflow: hidden;
+  position: relative;
+}
+
+.auth-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.1) 50%, transparent 65%);
+  transform: translateX(-100%);
+  transition: transform 0.45s ease;
+}
+
+.auth-btn:hover::after {
+  transform: translateX(100%);
 }
 
 .auth-btn:hover {
@@ -677,6 +705,13 @@ body {
   gap: 6px;
   position: relative;
   overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.4), 0 0 20px rgba(93,184,42,0.1);
+  border-color: var(--border-light);
 }
 .stat-card::after {
   content: '';
@@ -764,7 +799,7 @@ body {
 
 .form-input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-dim);
+  box-shadow: 0 0 0 3px var(--accent-dim), 0 2px 8px rgba(0,0,0,0.25);
 }
 
 .form-input::placeholder {
@@ -856,6 +891,21 @@ body {
   cursor: pointer;
   box-shadow: 0 2px 12px rgba(93,184,42,0.35);
   transition: all var(--transition);
+  overflow: hidden;
+  position: relative;
+}
+
+.btn-submit::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.1) 50%, transparent 65%);
+  transform: translateX(-100%);
+  transition: transform 0.45s ease;
+}
+
+.btn-submit:hover::after {
+  transform: translateX(100%);
 }
 
 .btn-submit:hover {
@@ -1162,8 +1212,8 @@ body {
 }
 
 .weapon-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(93,184,42,0.12);
 }
 
 .weapon-card-top {
@@ -1338,8 +1388,8 @@ body {
 }
 
 .group-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(93,184,42,0.12);
 }
 
 .group-card-header {
@@ -1471,6 +1521,21 @@ body {
 
 .modal-overlay.open {
   display: flex;
+  animation: modalOverlayIn 0.2s ease;
+}
+
+.modal-overlay.open .modal-box {
+  animation: modalBoxIn 0.28s cubic-bezier(.22,1,.36,1);
+}
+
+@keyframes modalOverlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes modalBoxIn {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .modal-box {
@@ -2183,8 +2248,8 @@ body {
 }
 
 .mission-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(93,184,42,0.12);
 }
 
 .mission-card.status-en_cours { border-left: 3px solid #f5a623; }
