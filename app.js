@@ -791,6 +791,7 @@ function renderGroups() {
       <div class="group-card-body">
         ${field('📍 Lieu de résidence',   g.residence)}
         ${field('🗺️ Territoire contrôlé', g.territory)}
+        ${field('📞 Téléphone',           g.phone)}
         ${field('💼 Business possédé',    g.business)}
         ${field('🏢 Entreprise possédée', g.company)}
       </div>
@@ -854,6 +855,7 @@ function openGroupModal(group) {
   document.getElementById('groupName').value      = group?.name      ?? '';
   document.getElementById('groupResidence').value = group?.residence ?? '';
   document.getElementById('groupTerritory').value = group?.territory ?? '';
+  document.getElementById('groupPhone').value     = group?.phone     ?? '';
   document.getElementById('groupBusiness').value  = group?.business  ?? '';
   document.getElementById('groupCompany').value   = group?.company   ?? '';
   document.getElementById('groupNotes').value     = group?.notes     ?? '';
@@ -879,6 +881,7 @@ document.getElementById('btnSaveGroup')?.addEventListener('click', async () => {
   const name      = document.getElementById('groupName').value.trim();
   const residence = document.getElementById('groupResidence').value.trim();
   const territory = document.getElementById('groupTerritory').value.trim();
+  const phone     = document.getElementById('groupPhone').value.trim();
   const business  = document.getElementById('groupBusiness').value.trim();
   const company   = document.getElementById('groupCompany').value.trim();
   const notes     = document.getElementById('groupNotes').value.trim();
@@ -890,7 +893,7 @@ document.getElementById('btnSaveGroup')?.addEventListener('click', async () => {
 
   const color    = document.getElementById('groupColor').value;
   const zone_ids = getSelectedZoneIds();
-  const body = { name, residence, territory, business, company, notes, color, zone_ids };
+  const body = { name, residence, territory, phone, business, company, notes, color, zone_ids };
   const isEdit  = id !== '';
   const url     = isEdit ? `${API}/groups/${id}` : `${API}/groups`;
   const method  = isEdit ? 'PUT' : 'POST';
@@ -1905,10 +1908,10 @@ const GTA_ZONES = [
   { id: 'davis',          name: 'Davis',               polygon: [[305,843],[305,893],[347,894],[357,922],[378,906],[371,868],[343,866],[340,840]] },
   { id: 'chamberlain',    name: 'Chamberlain Hills',   polygon: [[349,855],[364,887],[373,874],[400,875],[411,861],[402,844],[385,839],[361,839]] },
   { id: 'south_ls',       name: 'South LS',            polygon: [[434,812],[381,815],[351,853],[313,896],[290,939],[340,977],[383,974],[430,960]] },
-  { id: 'elysian_island', name: 'Elysian Island',      polygon: [[460,1440],[460,1620],[300,1620],[300,1440]] },
+  { id: 'elysian_island', name: 'Elysian Island',      polygon: [[576,541],[598,553],[605,571],[598,589],[585,601],[581,624],[594,636],[565,663],[516,617]] },
   { id: 'port_ls',        name: 'Port de LS',          polygon: [[251,813],[190,793],[173,799],[209,850],[191,885],[207,904],[114,898],[113,930],[183,933],[206,941],[205,948],[112,949],[118,975],[156,979],[110,999],[107,1081],[177,1074],[178,999],[209,996],[238,972],[252,947],[258,905],[262,842]] },
   { id: 'east_ls',        name: 'East LS',             polygon: [[429,971],[233,986],[234,1127],[354,1144],[401,1154],[437,1068]] },
-  { id: 'cypress_flats',  name: 'Cypress Flats',       polygon: [[720,1200],[720,1380],[560,1380],[560,1200]] },
+  { id: 'cypress_flats',  name: 'Cypress Flats',       polygon: [[980,536],[922,542],[923,564],[913,575],[898,572],[898,587],[907,590],[909,604],[915,605],[916,618],[928,623],[942,622],[950,638],[962,642],[986,640],[987,629],[1000,619],[986,583]] },
   { id: 'la_mesa',        name: 'La Mesa',             polygon: [[553,950],[547,1003],[493,1018],[460,1035],[417,1034],[409,1066],[400,975],[439,960]] },
   { id: 'murrieta',       name: 'Murrieta Heights',    polygon: [[960,1160],[960,1320],[800,1320],[800,1160]] },
   { id: 'downtown_vinew', name: 'Downtown Vinewood',   polygon: [[615,841],[556,841],[550,929],[578,952]] },
@@ -1924,7 +1927,7 @@ const GTA_ZONES = [
 ];
 
 // Version — incrémenter pour forcer reset des zones sauvegardées
-const ZONES_VERSION = 4;
+const ZONES_VERSION = 5;
 if (parseInt(localStorage.getItem('cc_zones_version') || '0') < ZONES_VERSION) {
   localStorage.removeItem('cc_custom_zones');
   localStorage.setItem('cc_zones_version', String(ZONES_VERSION));

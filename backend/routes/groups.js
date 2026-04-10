@@ -26,7 +26,7 @@ router.get('/', auth, async (req, res) => {
 
 // POST /api/groups
 router.post('/', auth, async (req, res) => {
-  const { name, residence, territory, business, company, notes, color, zone_ids } = req.body;
+  const { name, residence, territory, business, company, notes, color, zone_ids, phone } = req.body;
 
   if (!name || name.trim() === '') {
     return res.status(400).json({ error: 'Le nom du groupe est requis.' });
@@ -34,8 +34,8 @@ router.post('/', auth, async (req, res) => {
 
   try {
     const result = await pool.query(`
-      INSERT INTO groups (name, residence, territory, business, company, notes, color, zone_ids, created_by, updated_by)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$9)
+      INSERT INTO groups (name, residence, territory, business, company, notes, color, zone_ids, phone, created_by, updated_by)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10)
       RETURNING *
     `, [
       name.trim(),
@@ -46,6 +46,7 @@ router.post('/', auth, async (req, res) => {
       notes?.trim()     || null,
       color || '#4caf82',
       zone_ids || '',
+      phone?.trim()     || null,
       req.user.id,
     ]);
 
@@ -66,7 +67,7 @@ router.put('/:id', auth, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: 'ID invalide.' });
 
-  const { name, residence, territory, business, company, notes, color, zone_ids } = req.body;
+  const { name, residence, territory, business, company, notes, color, zone_ids, phone } = req.body;
   if (!name || name.trim() === '') {
     return res.status(400).json({ error: 'Le nom du groupe est requis.' });
   }
@@ -75,8 +76,8 @@ router.put('/:id', auth, async (req, res) => {
     await pool.query(`
       UPDATE groups
       SET name=$1, residence=$2, territory=$3, business=$4, company=$5, notes=$6,
-          color=$7, zone_ids=$8, updated_by=$9, updated_at=NOW()
-      WHERE id=$10
+          color=$7, zone_ids=$8, phone=$9, updated_by=$10, updated_at=NOW()
+      WHERE id=$11
     `, [
       name.trim(),
       residence?.trim() || null,
@@ -86,6 +87,7 @@ router.put('/:id', auth, async (req, res) => {
       notes?.trim()     || null,
       color || '#4caf82',
       zone_ids || '',
+      phone?.trim()     || null,
       req.user.id,
       id,
     ]);
