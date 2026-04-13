@@ -1964,6 +1964,77 @@ body {
 .log-action-Entrée    { background: rgba(76,175,130,.15);  color: #4caf82; }
 .log-action-Sortie    { background: rgba(220,60,60,.15);   color: #e05c5c; }
 
+/* ===== COTISATIONS TABLE ===== */
+.cotisations-table-wrap {
+  overflow: hidden;
+}
+
+.cotisations-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.cotisations-table {
+  min-width: 500px;
+  white-space: nowrap;
+}
+
+.coti-th-member {
+  text-align: left;
+  min-width: 130px;
+}
+
+.coti-th-week {
+  text-align: center;
+  min-width: 100px;
+  font-variant-numeric: tabular-nums;
+}
+
+.coti-th-total {
+  text-align: center;
+  min-width: 100px;
+}
+
+.coti-member {
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.coti-cell {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-size: 12.5px;
+}
+
+.coti-has {
+  color: #4caf82;
+  font-weight: 600;
+}
+
+.coti-empty {
+  color: var(--text-muted);
+  opacity: .45;
+}
+
+.coti-row-total {
+  color: var(--text-primary);
+  font-weight: 600;
+  border-left: 1px solid var(--border);
+}
+
+.coti-grand-total {
+  color: var(--accent);
+  font-weight: 700;
+  border-left: 1px solid var(--border);
+}
+
+.coti-footer-row td {
+  background-color: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  font-weight: 600;
+}
+
 /* ===== TERRITOIRES — CARTE ===== */
 .map-toolbar {
   display: flex;

@@ -771,6 +771,21 @@
           </table>
         </div>
 
+        <!-- Cotisations par membre et par semaine -->
+        <div class="admin-users-card" style="margin-top:1.5rem">
+          <div class="admin-card-header" style="display:flex;align-items:center;justify-content:space-between">
+            <h2 class="form-title" style="margin:0">💰 Cotisations par membre et par semaine</h2>
+            <button class="btn-refresh" id="btnRefreshCotisations" title="Actualiser">↻</button>
+          </div>
+          <div class="logs-filter-bar">
+            <button class="filter-btn active" data-cfilter="entree">Entrées seulement</button>
+            <button class="filter-btn" data-cfilter="all">Toutes transactions</button>
+          </div>
+          <div class="cotisations-table-wrap" id="cotisationsTableWrap">
+            <p class="admin-empty">Chargement...</p>
+          </div>
+        </div>
+
         <!-- Modal reset mot de passe -->
         <div class="modal-overlay" id="resetPwdModal">
           <div class="modal-box">

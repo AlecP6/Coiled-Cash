@@ -300,6 +300,7 @@ function switchSection(targetId) {
     if (targetId === 'admin') {
       fetchAdminUsers();
       fetchLogs();
+      fetchTransactions();
     }
     if (targetId === 'territoires') {
       fetchGroups();
@@ -349,6 +350,7 @@ async function fetchTransactions() {
     transactions = data;
     renderTransactions();
     updateStats();
+    renderCotisationsTable();
   } catch {
     console.error('Erreur chargement transactions.');
   }
@@ -1548,6 +1550,97 @@ document.querySelectorAll('[data-lfilter]').forEach(btn => {
 });
 
 document.getElementById('btnRefreshLogs')?.addEventListener('click', fetchLogs);
+
+// ===== COTISATIONS PAR MEMBRE ET PAR SEMAINE =====
+let cotisationsFilter = 'entree';
+
+function getISOWeekKey(dateStr) {
+  const d    = new Date(dateStr);
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const weekNum   = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+  return `${date.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+}
+
+function formatWeekLabel(weekKey) {
+  const [year, wPart] = weekKey.split('-W');
+  return `S${wPart} · ${year}`;
+}
+
+function renderCotisationsTable() {
+  const wrap = document.getElementById('cotisationsTableWrap');
+  if (!wrap) return;
+
+  const list = cotisationsFilter === 'entree'
+    ? transactions.filter(t => t.type === 'entree')
+    : transactions;
+
+  if (list.length === 0) {
+    wrap.innerHTML = '<p class="admin-empty">Aucune transaction à afficher.</p>';
+    return;
+  }
+
+  const pivot   = {};
+  const weeksSet = new Set();
+
+  list.forEach(t => {
+    const wk = getISOWeekKey(t.created_at);
+    weeksSet.add(wk);
+    if (!pivot[t.member]) pivot[t.member] = {};
+    pivot[t.member][wk] = (pivot[t.member][wk] || 0) + Number(t.amount);
+  });
+
+  const weeks   = [...weeksSet].sort((a, b) => b.localeCompare(a)).slice(0, 12);
+  const members = Object.keys(pivot).sort();
+
+  let html = `<div class="cotisations-scroll"><table class="admin-table cotisations-table">
+    <thead><tr>
+      <th class="coti-th-member">Membre</th>
+      ${weeks.map(wk => `<th class="coti-th-week">${escapeHtml(formatWeekLabel(wk))}</th>`).join('')}
+      <th class="coti-th-total">Total</th>
+    </tr></thead>
+    <tbody>`;
+
+  members.forEach(member => {
+    const rowTotal = weeks.reduce((sum, wk) => sum + (pivot[member][wk] || 0), 0);
+    html += `<tr>
+      <td class="coti-member">${escapeHtml(member)}</td>
+      ${weeks.map(wk => {
+        const val = pivot[member][wk];
+        return val
+          ? `<td class="coti-cell coti-has">${formatAmount(val)}</td>`
+          : `<td class="coti-cell coti-empty">—</td>`;
+      }).join('')}
+      <td class="coti-cell coti-row-total">${formatAmount(rowTotal)}</td>
+    </tr>`;
+  });
+
+  const grandTotal = list.reduce((s, t) => s + Number(t.amount), 0);
+  html += `<tr class="coti-footer-row">
+    <td class="coti-member"><strong>Total</strong></td>
+    ${weeks.map(wk => {
+      const wkTotal = members.reduce((sum, m) => sum + (pivot[m][wk] || 0), 0);
+      return `<td class="coti-cell coti-row-total">${wkTotal > 0 ? formatAmount(wkTotal) : '—'}</td>`;
+    }).join('')}
+    <td class="coti-cell coti-grand-total">${formatAmount(grandTotal)}</td>
+  </tr>`;
+
+  html += '</tbody></table></div>';
+  wrap.innerHTML = html;
+}
+
+document.querySelectorAll('[data-cfilter]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-cfilter]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    cotisationsFilter = btn.dataset.cfilter;
+    renderCotisationsTable();
+  });
+});
+
+document.getElementById('btnRefreshCotisations')?.addEventListener('click', fetchTransactions);
 
 // ===== DASHBOARD =====
 async function refreshDashboard() {
