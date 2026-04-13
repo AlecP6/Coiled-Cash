@@ -2042,7 +2042,7 @@ const GTA_ZONES = [
   { id: 'mirror_park',    name: 'Mirror Park',         polygon: [[613,1002],[534,1007],[501,1059],[506,1101],[541,1097],[576,1071],[593,1044]] },
   { id: 'banning',        name: 'Banning',             polygon: [[560,1460],[560,1600],[420,1600],[420,1460]] },
   { id: 'tataviam',       name: 'Tataviam Mountains',  polygon: [[1100,400],[1100,600],[940,600],[940,400]] },
-  { id: 'grand_senora',   name: 'Grand Senora Desert', polygon: [[1117,1011],[1066,1041],[1049,1093],[1082,1180],[1078,1251],[1191,1322],[1242,1278],[1175,1176],[1139,1103]] },
+  { id: 'grand_senora',   name: 'Grand Senora Desert', polygon: [[721,1075],[810,1130],[906,1145],[977,1157],[989,1093],[1006,1059],[1014,1014],[982,991],[908,996]] },
   { id: 'harmony',        name: 'Harmony',             polygon: [[1131,916],[1109,987],[1079,990],[1049,981],[1032,926],[1082,913]] },
   { id: 'recession_pool', name: 'Ron Alternates Wind', polygon: [[780,820],[780,960],[640,960],[640,820]] },
   { id: 'great_ocean',    name: 'Great Ocean Hwy',     polygon: [[500,640],[500,820],[340,820],[340,640]] },
