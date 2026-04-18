@@ -2,17 +2,27 @@
 const API = '/api';
 
 // ===== ANIMATIONS UTILITAIRES =====
+
+// Applique une animation d'apparition décalée (stagger) sur toutes les cartes d'une grille.
+// Chaque carte repart de opacity:0 puis se réanime avec un délai de 55ms × son index,
+// produisant un effet visuel d'entrée en cascade plutôt qu'un apparition simultanée.
 function applyStagger(grid) {
   const cards = grid.querySelectorAll('.weapon-card, .group-card, .mission-card');
   cards.forEach((el, i) => {
     el.style.opacity = '0';
     el.style.animation = 'none';
+    // Double requestAnimationFrame nécessaire pour forcer le navigateur à "voir"
+    // le reset de l'animation avant de relancer la nouvelle.
     requestAnimationFrame(() => {
       el.style.animation = `fadeIn 0.35s cubic-bezier(.22,1,.36,1) ${i * 55}ms forwards`;
     });
   });
 }
 
+// Anime un compteur numérique de 0 vers `target` sur 650ms avec un easing "ease-out cubic"
+// (décélération progressive). Le `formatter` optionnel est appliqué à chaque frame
+// pour afficher des unités (ex : formatAmount pour les montants $).
+// Si la valeur n'est pas numérique, elle est affichée directement sans animation.
 function animateCounter(el, target, formatter = null) {
   const num = parseFloat(String(target).replace(/[^0-9.-]/g, ''));
   if (isNaN(num)) { el.textContent = formatter ? formatter(target) : target; return; }
@@ -20,6 +30,7 @@ function animateCounter(el, target, formatter = null) {
   const duration = 650;
   const step = (now) => {
     const progress = Math.min((now - start) / duration, 1);
+    // Formule ease-out cubique : rapide au début, ralentit vers la fin
     const eased = 1 - Math.pow(1 - progress, 3);
     const current = Math.floor(eased * num);
     el.textContent = formatter ? formatter(current) : current;
@@ -75,9 +86,13 @@ document.getElementById('confirmModal')?.addEventListener('click', (e) => {
 });
 
 // ===== AUTH =====
+// currentUser : objet utilisateur courant (id, rp_name, is_admin…) ; null si déconnecté.
+// authToken   : JWT renvoyé par le serveur, inclus dans chaque requête API.
 let currentUser = null;
 let authToken   = null;
 
+// Relit la session depuis sessionStorage (persist le temps de l'onglet, pas au-delà).
+// Retourne { token, user } ou null si aucune session n'est enregistrée.
 function getStoredSession() {
   const token = sessionStorage.getItem('cc_token');
   const user  = sessionStorage.getItem('cc_user');
@@ -85,11 +100,13 @@ function getStoredSession() {
   return null;
 }
 
+// Persiste le token JWT et les données utilisateur pour la durée de l'onglet.
 function storeSession(token, user) {
   sessionStorage.setItem('cc_token', token);
   sessionStorage.setItem('cc_user', JSON.stringify(user));
 }
 
+// Supprime la session stockée (appel lors de la déconnexion).
 function clearStoredSession() {
   sessionStorage.removeItem('cc_token');
   sessionStorage.removeItem('cc_user');
@@ -205,6 +222,7 @@ document.querySelectorAll('.auth-input').forEach(input => {
   });
 });
 
+// Met à jour les variables globales de session, persiste et initialise l'interface.
 function loginUser(token, user) {
   currentUser = user;
   authToken   = token;
@@ -213,7 +231,10 @@ function loginUser(token, user) {
   onUserLoggedIn(user);
 }
 
+// Appelé après une connexion réussie : met à jour l'avatar, le nom RP en topbar,
+// affiche le lien Admin uniquement aux admins et charge le dashboard.
 function onUserLoggedIn(user) {
+  // Génère les initiales à partir du nom RP (ex : "Jean Dupont" → "JD")
   const initials = user.rp_name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
   document.getElementById('userAvatar').textContent = initials;
   document.getElementById('userRpName').textContent = user.rp_name;
@@ -239,6 +260,7 @@ const navItems    = document.querySelectorAll('.nav-item');
 const sections    = document.querySelectorAll('.section');
 const topbarTitle = document.getElementById('topbarTitle');
 
+// Correspondance entre l'id de section et le titre affiché dans la topbar.
 const sectionTitles = {
   'dashboard':     'Dashboard',
   'comptabilite':  'Comptabilité',
@@ -261,6 +283,8 @@ if (saved) {
   hideLoadingScreen();
 }
 
+// Active la section cible (affichage CSS), met à jour la navigation,
+// ferme la sidebar sur mobile et déclenche le chargement des données spécifiques à la section.
 function switchSection(targetId) {
   sections.forEach(s => s.classList.remove('active'));
   navItems.forEach(n => n.classList.remove('active'));
@@ -271,7 +295,7 @@ function switchSection(targetId) {
   if (topbarTitle)   topbarTitle.textContent = sectionTitles[targetId] || targetId;
   if (window.innerWidth <= 768) closeSidebar();
 
-  // Chargement des données par section
+  // Chargement des données par section — chaque section charge ses données à la demande (lazy loading)
   if (currentUser) {
     if (targetId === 'comptabilite') {
       refreshComptabilite();
@@ -341,13 +365,18 @@ menuToggle?.addEventListener('click', () => {
 sidebarOverlay?.addEventListener('click', closeSidebar);
 
 // ===== COMPTABILITÉ =====
+// Cache local des transactions et filtre courant ('all' | 'entree' | 'sortie').
 let transactions = [];
 let activeFilter = 'all';
 
+// Construit les en-têtes HTTP communs pour toutes les requêtes authentifiées :
+// Content-Type JSON + JWT Bearer token issu de la session en cours.
 function authHeaders() {
   return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` };
 }
 
+// Récupère toutes les transactions depuis l'API, met à jour le cache local,
+// puis déclenche : rendu du tableau, calcul des stats et tableau des cotisations.
 async function fetchTransactions() {
   try {
     const res  = await fetch(`${API}/transactions`, { headers: authHeaders() });
@@ -362,16 +391,21 @@ async function fetchTransactions() {
   }
 }
 
+// Formate un nombre en devise : préfixe "$" avec séparateur de milliers (locale fr-CA utilise l'espace).
+// Ex : 1500 → "$1 500"
 function formatAmount(n) {
   return '$' + Number(n).toLocaleString('fr-CA', { maximumFractionDigits: 0 });
 }
 
+// Formate une date ISO en "JJ/MM/AAAA HH:MM" lisible.
 function formatDate(iso) {
   const d = new Date(iso);
   return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
     + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 }
 
+// Recalcule les totaux entrées/sorties/solde à partir du cache `transactions`
+// et anime les cartes de statistiques. Le solde apparaît en rouge si négatif.
 function updateStats() {
   const total_in  = transactions.filter(t => t.type === 'entree').reduce((s, t) => s + Number(t.amount), 0);
   const total_out = transactions.filter(t => t.type === 'sortie').reduce((s, t) => s + Number(t.amount), 0);
@@ -382,9 +416,12 @@ function updateStats() {
   animateCounter(document.getElementById('statExpense'), total_out, formatAmount);
   animateCounter(document.getElementById('statCount'),   transactions.length);
 
+  // Feedback visuel : rouge si le solde est dans le négatif, vert accent sinon.
   document.getElementById('statBalance').style.color = balance < 0 ? '#e05c5c' : 'var(--accent)';
 }
 
+// Reconstruit le tableau des transactions : supprime les anciennes lignes `.data-row`
+// (en conservant la ligne "vide") puis insère les nouvelles selon le filtre actif.
 function renderTransactions() {
   const tbody    = document.getElementById('transactionsList');
   const emptyRow = document.getElementById('emptyTransactions');
@@ -393,6 +430,7 @@ function renderTransactions() {
     ? transactions
     : transactions.filter(t => t.type === activeFilter);
 
+  // Supprime uniquement les lignes de données, pas la ligne d'état vide.
   Array.from(tbody.querySelectorAll('tr.data-row')).forEach(r => r.remove());
 
   if (filtered.length === 0) {
@@ -423,6 +461,8 @@ function renderTransactions() {
   });
 }
 
+// Échappe les caractères HTML spéciaux pour prévenir les injections XSS
+// lors de l'insertion de contenu utilisateur directement dans le DOM via innerHTML.
 function escapeHtml(str) {
   return String(str)
     .replace(/&/g, '&amp;')
@@ -487,6 +527,8 @@ document.getElementById('btnAddTransaction')?.addEventListener('click', async ()
   }
 });
 
+// Signale visuellement une erreur de saisie : bordure rouge + message dans le placeholder.
+// Se réinitialise automatiquement après 2 secondes.
 function flashInput(id, msg) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -531,11 +573,12 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
 });
 
 // ===== ARMEMENT =====
+// Caches locaux des armes et des membres, filtres actifs et id de l'arme en attente d'attribution.
 let weapons      = [];
 let members      = [];
-let weaponFilter = 'all';
+let weaponFilter = 'all';   // 'all' | 'free' | 'assigned'
 let weaponSearch = '';
-let assignTarget = null; // id de l'arme en cours d'attribution
+let assignTarget = null;    // id de l'arme dont la modale d'attribution est ouverte
 
 const CATEGORY_ICONS = {
   'Arme à feu':   '🔫',
@@ -553,6 +596,8 @@ async function fetchWeapons() {
   } catch { console.error('Erreur chargement armes.'); }
 }
 
+// Récupère la liste des membres et repeuple les deux selects d'attribution
+// (armes et véhicules) qui dépendent de cette liste.
 async function fetchMembers() {
   try {
     const res  = await fetch(`${API}/members`, { headers: authHeaders() });
@@ -572,6 +617,8 @@ function updateWeaponStats() {
   animateCounter(document.getElementById('weaponStatFree'),     total - assigned);
 }
 
+// Retourne les armes correspondant au filtre actif (disponible / attribuée / toutes)
+// ET à la recherche textuelle (portant sur le nom ou la catégorie).
 function getFilteredWeapons() {
   return weapons.filter(w => {
     if (weaponFilter === 'free'     && w.assigned_to)  return false;
@@ -604,6 +651,7 @@ function renderWeapons() {
     card.dataset.id = w.id;
 
     const icon     = CATEGORY_ICONS[w.category] || '🔧';
+    // Génère les initiales du propriétaire depuis son nom RP (ex : "Jean Dupont" → "JD").
     const initials = w.assigned_to_name
       ? w.assigned_to_name.split(' ').map(x => x[0]).join('').toUpperCase().slice(0, 2)
       : '—';
@@ -635,9 +683,10 @@ function renderWeapons() {
   applyStagger(grid);
 }
 
+// Réinitialise et repeuple le <select> d'attribution des armes avec la liste
+// des membres actuels. L'option vide permet de retirer une attribution existante.
 function populateAssignSelect() {
   const sel = document.getElementById('assignSelect');
-  // Keep the first "none" option
   sel.innerHTML = '<option value="">-- Aucun (retirer l\'attribution) --</option>';
   members.forEach(m => {
     const opt = document.createElement('option');
@@ -731,7 +780,8 @@ document.getElementById('btnConfirmAssign')?.addEventListener('click', async () 
   } catch { showToast('Impossible de contacter le serveur.', 'error'); }
 });
 
-// Modal helpers
+// Ouvre/ferme une modale par son id. closeModal remet également assignTarget à null
+// pour éviter qu'une ancienne cible ne soit réutilisée par erreur.
 function openModal(id) {
   document.getElementById(id).classList.add('open');
 }
@@ -763,9 +813,12 @@ document.getElementById('weaponSearch')?.addEventListener('input', (e) => {
 });
 
 // ===== GROUPES =====
+// Cache local des groupes et terme de recherche en cours.
 let groups      = [];
 let groupSearch = '';
 
+// Récupère les groupes, les affiche dans la grille et met à jour les polygones sur la carte
+// (les zones assignées aux groupes sont dessinées via refreshMapOverlays).
 async function fetchGroups() {
   try {
     const res  = await fetch(`${API}/groups`, { headers: authHeaders() });
@@ -868,6 +921,8 @@ document.getElementById('groupsGrid')?.addEventListener('click', (e) => {
   }
 });
 
+// Génère les chips cliquables de sélection de zones dans la modale groupe.
+// Les zones déjà assignées au groupe sont pré-sélectionnées (classe CSS "selected").
 function buildZoneSelector(selectedIds = []) {
   const container = document.getElementById('zoneSelector');
   if (!container) return;
@@ -882,6 +937,8 @@ function buildZoneSelector(selectedIds = []) {
   });
 }
 
+// Lit les chips sélectionnées et retourne leurs ids sous forme de chaîne CSV
+// (ex : "paleto_bay,davis") pour stockage en base de données.
 function getSelectedZoneIds() {
   return Array.from(document.querySelectorAll('#zoneSelector .zone-chip.selected'))
     .map(c => c.dataset.zid).join(',');
@@ -987,6 +1044,7 @@ document.getElementById('groupSearch')?.addEventListener('input', (e) => {
 });
 
 // ===== RÉSUMÉ TABLES =====
+// Cache local des résumés (comptes-rendus de réunion) et terme de recherche.
 let summaries     = [];
 let summarySearch = '';
 
@@ -1000,9 +1058,11 @@ async function fetchSummaries() {
   } catch { console.error('Erreur chargement résumés.'); }
 }
 
+// Convertit une date ISO (YYYY-MM-DD ou YYYY-MM-DDTHH:...) en format lisible JJ/MM/AAAA.
+// On tronque à 10 caractères pour ignorer l'heure si elle est présente.
 function formatEventDate(dateStr) {
   if (!dateStr) return '';
-  const clean = dateStr.substring(0, 10); // gère "YYYY-MM-DD" et "YYYY-MM-DDTHH:..."
+  const clean = dateStr.substring(0, 10);
   const [y, m, d] = clean.split('-');
   return `${d}/${m}/${y}`;
 }
@@ -1067,7 +1127,8 @@ function renderSummaries() {
   });
 }
 
-// Pré-remplir la date du jour
+// Pré-remplit la date du formulaire de résumé avec la date du jour (format YYYY-MM-DD)
+// uniquement si le champ est encore vide (évite d'écraser une saisie en cours).
 function initSummaryDate() {
   const input = document.getElementById('summaryDate');
   if (input && !input.value) {
@@ -1197,10 +1258,12 @@ document.getElementById('summarySearch')?.addEventListener('input', (e) => {
 });
 
 // ===== VÉHICULES =====
+// Cache local des véhicules, filtres actifs et id du véhicule en attente d'attribution.
+// Le module véhicule est calqué sur le même pattern que l'armement.
 let vehicles       = [];
-let vehicleFilter  = 'all';
+let vehicleFilter  = 'all';   // 'all' | 'free' | 'assigned'
 let vehicleSearch  = '';
-let vehicleAssignTarget = null;
+let vehicleAssignTarget = null;   // id du véhicule dont la modale d'attribution est ouverte
 
 const VEHICLE_ICONS = {
   'Voiture': '🚗',
@@ -1402,8 +1465,11 @@ document.getElementById('vehicleSearch')?.addEventListener('input', (e) => {
 });
 
 // ===== ADMIN =====
+// Cache local des utilisateurs pour la vue admin.
 let adminUsers = [];
 
+// Charge la liste complète des membres depuis l'endpoint admin (accès restreint aux admins).
+// Affiche un état de chargement pendant la requête.
 async function fetchAdminUsers() {
   const tbody = document.getElementById('adminUsersTbody');
   if (!tbody) return;
@@ -1507,9 +1573,11 @@ document.getElementById('resetPwdModal')?.addEventListener('click', (e) => {
 });
 
 // ===== HISTORIQUE DES MODIFICATIONS =====
+// Cache local des entrées d'audit et filtre actif par type d'entité.
 let auditLogs   = [];
-let logFilter   = 'all';
+let logFilter   = 'all';   // 'all' | 'Groupe' | 'Mission' | 'Résumé' | 'Arme' | 'Véhicule' | 'Transaction'
 
+// Charge l'historique complet des modifications effectuées par les membres.
 async function fetchLogs() {
   const tbody = document.getElementById('logsTbody');
   if (!tbody) return;
@@ -1558,23 +1626,33 @@ document.querySelectorAll('[data-lfilter]').forEach(btn => {
 document.getElementById('btnRefreshLogs')?.addEventListener('click', fetchLogs);
 
 // ===== COTISATIONS PAR MEMBRE ET PAR SEMAINE =====
+// Filtre courant : 'entree' (cotisations uniquement) ou 'all' (toutes transactions).
 let cotisationsFilter = 'entree';
 
+// Calcule la clé ISO 8601 de la semaine (ex : "2025-W03") à partir d'une date ISO.
+// Algorithme : trouve le jeudi de la semaine courante (ref ISO), puis en déduit le numéro.
+// Cela garantit que le jour 1 de la semaine 1 est toujours un lundi.
 function getISOWeekKey(dateStr) {
   const d    = new Date(dateStr);
   const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  // getUTCDay() retourne 0 pour dimanche, on le remplace par 7 pour l'ISO (lundi=1, dimanche=7)
   const dayNum = date.getUTCDay() || 7;
+  // Recale la date au jeudi de la même semaine ISO
   date.setUTCDate(date.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
   const weekNum   = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
   return `${date.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
 }
 
+// Transforme la clé ISO (ex : "2025-W03") en label lisible (ex : "S03 · 2025").
 function formatWeekLabel(weekKey) {
   const [year, wPart] = weekKey.split('-W');
   return `S${wPart} · ${year}`;
 }
 
+// Construit un tableau croisé dynamique (pivot) : lignes = membres, colonnes = 12 dernières semaines.
+// Chaque cellule contient la somme des montants pour ce membre cette semaine.
+// Une ligne de totaux par colonne et un grand total général sont ajoutés en pied de tableau.
 function renderCotisationsTable() {
   const wrap = document.getElementById('cotisationsTableWrap');
   if (!wrap) return;
@@ -1588,6 +1666,7 @@ function renderCotisationsTable() {
     return;
   }
 
+  // pivot[membre][semaine] = montant cumulé
   const pivot   = {};
   const weeksSet = new Set();
 
@@ -1649,8 +1728,11 @@ document.querySelectorAll('[data-cfilter]').forEach(btn => {
 document.getElementById('btnRefreshCotisations')?.addEventListener('click', fetchTransactions);
 
 // ===== DASHBOARD =====
+// Charge toutes les données nécessaires au dashboard en parallèle (Promise.all)
+// pour minimiser la latence totale, puis met à jour chaque widget indépendamment.
 async function refreshDashboard() {
   try {
+    // Toutes les requêtes sont lancées simultanément plutôt que séquentiellement.
     const [txRes, wRes, vRes, gRes, mRes, membRes, missRes] = await Promise.all([
       fetch(`${API}/transactions`,  { headers: authHeaders() }),
       fetch(`${API}/weapons`,       { headers: authHeaders() }),
@@ -1689,10 +1771,10 @@ async function refreshDashboard() {
         : '<p class="dash-empty">Aucune transaction.</p>';
     }
 
-    // Dernier résumé
+    // Dernier résumé — requête séparée car non incluse dans le Promise.all initial.
     const summEl = document.getElementById('dashLastSummary');
     if (summEl) {
-      const last = txData.length ? null : null; // On utilise summaries
+      const last = txData.length ? null : null; // placeholder non utilisé, summaries chargés ci-dessous
       const summRes = await fetch(`${API}/summaries`, { headers: authHeaders() });
       const summData = await summRes.json();
       if (summData.length) {
@@ -1740,13 +1822,18 @@ async function refreshDashboard() {
 }
 
 // ===== GRAPHIQUES COMPTABILITÉ =====
+// Instance Chart.js courante — conservée pour pouvoir la détruire avant de la recréer.
 let chartBalanceInst = null;
 
+// Calcule le solde cumulatif (running total) transaction par transaction dans l'ordre chronologique,
+// puis affiche une courbe de tendance du solde avec Chart.js.
+// L'instance précédente est détruite pour éviter les doublons de canvas.
 function renderBalanceChart(txData) {
   const canvas = document.getElementById('chartBalance');
   if (!canvas || !window.Chart) return;
   if (chartBalanceInst) chartBalanceInst.destroy();
 
+  // Tri chronologique pour que la courbe soit dans le bon sens.
   const sorted = [...txData].sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
   let running = 0;
   const labels = [], data = [];
@@ -1771,9 +1858,11 @@ function renderBalanceChart(txData) {
 
 
 // ===== MISSIONS =====
+// Cache local des missions et filtre actif par statut.
 let missions      = [];
-let missionFilter = 'all';
+let missionFilter = 'all';   // 'all' | 'en_cours' | 'termine' | 'echoue'
 
+// Labels d'affichage pour les statuts et priorités (utilisés dans les cartes et les selects).
 const MISSION_STATUS_LABELS = { en_cours: '⏳ En cours', termine: '✅ Terminée', echoue: '❌ Échouée' };
 const MISSION_PRIORITY_LABELS = { basse: '🟢 Basse', normale: '🟡 Normale', haute: '🔴 Haute' };
 
@@ -1792,12 +1881,15 @@ function getFilteredMissions() {
   return missions.filter(m => m.status === missionFilter);
 }
 
+// Génère les chips de sélection des membres assignés à une mission.
+// Même pattern que buildZoneSelector mais pour les membres plutôt que les zones.
 function buildMissionMembersSelector(selectedIds = []) {
   const container = document.getElementById('missionMembersSelector');
   if (!container) return;
   container.innerHTML = '';
   members.forEach(m => {
     const chip = document.createElement('span');
+    // Les ids sont comparés en String car data-mid est une string et selectedIds peut contenir des strings
     chip.className   = 'zone-chip' + (selectedIds.includes(String(m.id)) ? ' selected' : '');
     chip.textContent = m.rp_name;
     chip.dataset.mid = m.id;
@@ -1806,11 +1898,14 @@ function buildMissionMembersSelector(selectedIds = []) {
   });
 }
 
+// Retourne les ids des membres sélectionnés sous forme de chaîne CSV pour l'API.
 function getSelectedMissionMembers() {
   return Array.from(document.querySelectorAll('#missionMembersSelector .zone-chip.selected'))
     .map(c => c.dataset.mid).join(',');
 }
 
+// Résout une liste d'ids membres (format CSV) en noms RP lisibles.
+// Si un id n'est pas trouvé dans le cache local, il est retourné tel quel (fallback).
 function getMemberNames(ids) {
   if (!ids) return '';
   return ids.split(',').filter(Boolean).map(id => {
@@ -1964,11 +2059,14 @@ document.getElementById('missionModal')?.addEventListener('click', (e) => {
 });
 
 // ===== PROFIL MEMBRE =====
+// Charge le profil complet d'un membre depuis l'API (armes, véhicules, transactions associés),
+// peuple la modale et l'ouvre. Accessible en cliquant sur un membre dans le dashboard ou l'admin.
 async function openMemberProfile(memberId) {
   try {
     const res  = await fetch(`${API}/members/${memberId}/profile`, { headers: authHeaders() });
     const data = await res.json();
     if (!res.ok) return;
+    // Destructuration : l'API retourne un objet { user, weapons, vehicles, transactions }
     const { user, weapons: w, vehicles: v, transactions: tx } = data;
 
     document.getElementById('profileModalTitle').textContent = user.rp_name;
@@ -2017,6 +2115,10 @@ document.getElementById('adminUsersTbody')?.addEventListener('click', (e) => {
 }, true);
 
 // ===== TERRITOIRES — CARTE GTA 5 =====
+// Définition statique des zones géographiques de GTA V avec leurs polygones.
+// Les coordonnées sont exprimées dans le système de pixels de l'image de carte (1920×1920px).
+// En Leaflet CRS.Simple, les points sont [lat, lng] ce qui correspond à [y, x] en pixels image.
+// Ces polygones peuvent être remplacés par des versions personnalisées via l'éditeur de zones.
 const GTA_ZONES = [
   { id: 'paleto_bay',     name: 'Paleto Bay',          polygon: [[1744,888],[1717,918],[1690,942],[1667,959],[1646,977],[1619,976],[1609,924],[1593,898],[1569,869],[1556,852],[1543,827],[1547,803],[1558,777],[1581,777],[1605,782],[1625,812],[1636,834],[1654,838],[1657,852],[1668,863],[1684,873],[1703,874],[1716,885]] },
   { id: 'paleto_cove',    name: 'Paleto Cove',         polygon: [[1577,178],[1577,262],[1379,262],[1379,178]] },
@@ -2056,13 +2158,17 @@ const GTA_ZONES = [
   { id: 'senora_way',     name: 'Route de Senora',     polygon: [[1060,700],[1060,860],[900,860],[900,700]] },
 ];
 
-// Version — incrémenter pour forcer reset des zones sauvegardées
+// Numéro de version du jeu de zones par défaut. À incrémenter si les polygones statiques
+// changent de manière incompatible : cela force la suppression des données localStorage
+// de l'utilisateur pour repartir des nouvelles définitions.
 const ZONES_VERSION = 5;
 if (parseInt(localStorage.getItem('cc_zones_version') || '0') < ZONES_VERSION) {
   localStorage.removeItem('cc_custom_zones');
   localStorage.setItem('cc_zones_version', String(ZONES_VERSION));
 }
 
+// Surcharge les polygones statiques de GTA_ZONES par les versions personnalisées
+// que l'utilisateur a dessinées via l'éditeur et sauvegardées dans localStorage.
 function loadCustomZones() {
   const saved = localStorage.getItem('cc_custom_zones');
   if (!saved) return;
@@ -2074,6 +2180,8 @@ function loadCustomZones() {
   } catch {}
 }
 
+// Persiste un polygone personnalisé dans localStorage en mettant à jour l'entrée existante
+// ou en en ajoutant une nouvelle si la zone n'avait pas encore été modifiée.
 function saveCustomZone(id, polygon) {
   let custom = [];
   try { custom = JSON.parse(localStorage.getItem('cc_custom_zones') || '[]'); } catch {}
@@ -2082,24 +2190,29 @@ function saveCustomZone(id, polygon) {
   localStorage.setItem('cc_custom_zones', JSON.stringify(custom));
 }
 
-// ─── Variables carte ───
-let gtaMap        = null;
-let mapLayers     = {};
-let editorMode    = false;
-let editorPoints  = [];
-let editorMarkers = [];
-let editorPreview = null;
-let editorZoneId  = null;
-let mapInitialized = false;
+// ─── Variables d'état de la carte et de l'éditeur ───
+let gtaMap        = null;     // Instance Leaflet (null avant initMap)
+let mapLayers     = {};       // Dictionnaire id → couche Leaflet des polygones actifs
+let editorMode    = false;    // Vrai quand le mode dessin de zone est activé
+let editorPoints  = [];       // Points [lat, lng] cliqués durant le dessin en cours
+let editorMarkers = [];       // Marqueurs Leaflet correspondant aux points cliqués
+let editorPreview = null;     // Polygone en pointillés montrant l'aperçu du tracé
+let editorZoneId  = null;     // Id de la zone GTA_ZONES en cours d'édition
+let mapInitialized = false;   // Guard pour éviter une double-initialisation de la carte
 
+// Initialise la carte Leaflet avec CRS.Simple (pas de projection géographique) :
+// adapté pour une image de carte de jeu vidéo. L'image GTA 5 (1920×1920 px) est
+// utilisée comme fond. La double-initialisation est bloquée par `mapInitialized`.
 function initMap() {
   if (mapInitialized) { gtaMap?.invalidateSize(); return; }
   const el = document.getElementById('gtaMap');
   if (!el || typeof L === 'undefined') return;
 
+  // Charge les polygones personnalisés avant d'afficher la carte.
   loadCustomZones();
 
   const W = 1920, H = 1920;
+  // CRS.Simple : coordonnées en pixels, y croissant vers le haut (comme Leaflet lat).
   const crs = L.CRS.Simple;
   gtaMap = L.map('gtaMap', {
     crs, minZoom: -2, maxZoom: 2, zoom: -1,
@@ -2108,7 +2221,7 @@ function initMap() {
     dragging:         true,
     touchZoom:        true,
     scrollWheelZoom:  true,
-    doubleClickZoom:  false,
+    doubleClickZoom:  false,   // désactivé pour ne pas interférer avec l'éditeur
     boxZoom:          false,
     keyboard:         false,
   });
@@ -2121,7 +2234,7 @@ function initMap() {
   gtaMap.fitBounds([[0,0],[H,W]], { animate: false });
   mapInitialized = true;
 
-  // Coordonnées en temps réel
+  // Affiche les coordonnées pixel en temps réel dans la barre d'outils lors du survol.
   gtaMap.on('mousemove', (e) => {
     const { lat, lng } = e.latlng;
     const x = Math.round(lng), y = Math.round(H - lat);
@@ -2147,12 +2260,14 @@ function initMap() {
   initMapEditor();
 }
 
+// Supprime tous les polygones de groupes existants sur la carte et les redessine
+// depuis le cache `groups`. Appelée après chaque création/modification/suppression de groupe.
 function refreshMapOverlays() {
   if (!gtaMap) return;
   Object.values(mapLayers).forEach(l => gtaMap.removeLayer(l));
   mapLayers = {};
 
-  // Zones des groupes (si groups chargés et ont zone_ids)
+  // Dessine un polygone coloré pour chaque zone assignée à un groupe.
   groups.forEach(g => {
     if (!g.zone_ids || !g.color) return;
     g.zone_ids.split(',').filter(Boolean).forEach(zid => {
@@ -2168,6 +2283,8 @@ function refreshMapOverlays() {
   renderMapLegend();
 }
 
+// Génère ou régénère la légende flottante sur la carte, listant les groupes
+// qui ont au moins une zone assignée. La légende précédente est supprimée avant recréation.
 function renderMapLegend() {
   const wrapper = document.querySelector('.map-wrapper');
   if (!wrapper) return;
@@ -2188,6 +2305,9 @@ function renderMapLegend() {
   wrapper.appendChild(legend);
 }
 
+// Met à jour le polygone de prévisualisation en pointillés pendant le tracé d'une zone.
+// L'ancien aperçu est détruit avant d'en créer un nouveau pour éviter les doublons.
+// Requiert au moins 2 points pour tracer une forme.
 function updateEditorPreview() {
   if (editorPreview) { gtaMap.removeLayer(editorPreview); editorPreview = null; }
   if (editorPoints.length < 2) return;
@@ -2201,6 +2321,11 @@ function updateEditorCoordsOutput() {
   if (out) out.textContent = JSON.stringify(editorPoints);
 }
 
+// Câble tous les contrôles de la barre d'outils de l'éditeur de zones :
+// - Bouton toggle : active/désactive le mode édition et affiche/masque les contrôles.
+// - Bouton "Tracer" : démarre un nouveau dessin pour la zone sélectionnée.
+// - Bouton "Effacer" : annule le tracé en cours.
+// - Bouton "Sauvegarder" : valide le polygone (min. 3 points) et le persiste dans localStorage.
 function initMapEditor() {
   const btnToggle   = document.getElementById('btnToggleEditor');
   const zoneSelect  = document.getElementById('editorZoneSelect');
@@ -2209,7 +2334,7 @@ function initMapEditor() {
   const btnSave     = document.getElementById('btnSaveZone');
   const coordsPanel = document.getElementById('editorCoordsPanel');
 
-  // Peupler le select des zones
+  // Peuple le select avec toutes les zones disponibles (noms lisibles).
   GTA_ZONES.forEach(z => {
     const opt = document.createElement('option');
     opt.value = z.id; opt.textContent = z.name;
@@ -2251,6 +2376,8 @@ function initMapEditor() {
   });
 }
 
+// Réinitialise complètement l'état du dessin en cours : vide le tableau de points,
+// supprime les marqueurs de clic et la prévisualisation de la carte.
 function clearEditorDraw() {
   editorPoints = [];
   editorMarkers.forEach(m => gtaMap?.removeLayer(m));
@@ -2261,6 +2388,8 @@ function clearEditorDraw() {
 }
 
 // ===== EXPORT ZONES =====
+// Permet à l'utilisateur d'exporter ses polygones personnalisés depuis localStorage
+// sous forme de JSON lisible, pour les partager ou les sauvegarder manuellement.
 document.getElementById('btnExportZones')?.addEventListener('click', () => {
   const raw   = localStorage.getItem('cc_custom_zones');
   const data  = raw ? JSON.parse(raw) : [];
@@ -2289,6 +2418,8 @@ document.getElementById('exportZonesModal')?.addEventListener('click', (e) => {
 });
 
 // ===== DATE DISPLAY =====
+// Affiche la date courante dans la topbar au format long (ex : "Samedi 18 avril 2026").
+// La première lettre est mise en majuscule car toLocaleDateString retourne parfois en minuscule.
 function updateDate() {
   const now     = new Date();
   const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
@@ -2300,6 +2431,9 @@ function updateDate() {
 updateDate();
 
 // ===== ADMIN COLLAPSIBLE SECTIONS =====
+// Rend les en-têtes des cartes admin cliquables pour réduire/agrandir leur contenu.
+// Les clics sur le bouton "Actualiser" (btn-refresh) sont ignorés pour ne pas déclencher
+// le toggle en même temps qu'un rechargement des données.
 document.querySelectorAll('.admin-card-header-toggle').forEach(header => {
   header.addEventListener('click', (e) => {
     if (e.target.closest('.btn-refresh')) return;
@@ -2308,6 +2442,7 @@ document.querySelectorAll('.admin-card-header-toggle').forEach(header => {
     const btn = header.querySelector('.btn-collapse-toggle');
     if (!body || !btn) return;
     const isCollapsed = body.classList.toggle('collapsed');
+    // Adapte l'icône du bouton selon l'état (+ = réduit, − = ouvert).
     btn.textContent = isCollapsed ? '+' : '−';
   });
 });

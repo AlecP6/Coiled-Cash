@@ -162,6 +162,7 @@
             <span class="nav-label">Missions</span>
           </a>
         </li>
+        <!-- Lien Admin masqué par défaut ; affiché uniquement pour les utilisateurs is_admin=true (géré dans onUserLoggedIn). -->
         <li id="adminNavItem" style="display:none">
           <a href="#" class="nav-item" data-section="admin">
             <span class="nav-icon">🛡️</span>
@@ -306,6 +307,8 @@
                   <span>↓</span> Sortie
                 </button>
               </div>
+              <!-- Champ caché servant de valeur d'état pour le type sélectionné ('entree' ou 'sortie').
+                   Mis à jour via les boutons Toggle dans app.js (btnEntree / btnSortie). -->
               <input type="hidden" id="transactionType" value="entree" />
             </div>
 
@@ -328,7 +331,8 @@
           </div>
         </div>
 
-        <!-- Graphiques -->
+        <!-- Graphique Chart.js — le <canvas> est géré par renderBalanceChart() dans app.js.
+             Chart.js est chargé en bas de page via CDN avant app.js. -->
         <div class="charts-row">
           <div class="chart-card" style="max-width:100%">
             <h2 class="form-title">Évolution du solde</h2>
@@ -517,6 +521,8 @@
                 </div>
                 <div class="form-group form-group-full">
                   <label class="form-label">🗺️ Zones sur la carte <span class="form-label-hint">(cliquez pour sélectionner)</span></label>
+                  <!-- Conteneur peuplé dynamiquement par buildZoneSelector() avec des chips cliquables.
+                       La sélection est lue par getSelectedZoneIds() lors de la sauvegarde. -->
                   <div class="zone-selector" id="zoneSelector"></div>
                 </div>
                 <div class="form-group">
@@ -840,6 +846,9 @@
           <div class="map-toolbar-right">
             <button class="filter-btn" id="btnExportZones" title="Exporter mes tracés">📤 Exporter zones</button>
             <button class="filter-btn" id="btnToggleEditor">✏️ Mode édition zones</button>
+            <!-- Les contrôles d'édition sont masqués individuellement via style="display:none"
+                 et rendus visibles par initMapEditor() quand le mode édition est activé.
+                 display:contents sur le wrapper permet d'ignorer ce div dans le layout flex. -->
             <div id="editorControls" style="display:none; display:contents">
               <select id="editorZoneSelect" class="form-input form-select editor-zone-select" style="display:none"></select>
               <button class="btn-assign" id="btnStartDraw" style="display:none">▶ Tracer</button>
@@ -929,6 +938,8 @@
                 </div>
                 <div class="form-group form-group-full">
                   <label class="form-label">👥 Membres assignés</label>
+                  <!-- Chips de sélection de membres, peuplées par buildMissionMembersSelector().
+                       La sélection est lue par getSelectedMissionMembers() lors de la sauvegarde. -->
                   <div class="zone-selector" id="missionMembersSelector"></div>
                 </div>
               </div>
@@ -986,8 +997,11 @@
     </div>
   </div>
 
+  <!-- Leaflet pour la carte interactive des territoires (CRS.Simple, sans projection géo). -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Chart.js pour le graphique d'évolution du solde dans la section Comptabilité. -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- Logique applicative principale — doit être chargé après Leaflet et Chart.js. -->
   <script src="app.js"></script>
 </body>
 </html> 
