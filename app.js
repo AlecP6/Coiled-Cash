@@ -269,7 +269,7 @@ function switchSection(targetId) {
   if (targetSection) targetSection.classList.add('active');
   if (targetNav)     targetNav.classList.add('active');
   if (topbarTitle)   topbarTitle.textContent = sectionTitles[targetId] || targetId;
-  if (window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('open');
+  if (window.innerWidth <= 768) closeSidebar();
 
   // Chargement des données par section
   if (currentUser) {
@@ -318,21 +318,27 @@ navItems.forEach(item => {
 });
 
 // ===== MOBILE MENU =====
-const menuToggle = document.getElementById('menuToggle');
-const sidebar    = document.getElementById('sidebar');
+const menuToggle     = document.getElementById('menuToggle');
+const sidebar        = document.getElementById('sidebar');
+const sidebarOverlay = document.getElementById('sidebarOverlay');
 
-menuToggle?.addEventListener('click', () => sidebar.classList.toggle('open'));
+function openSidebar() {
+  sidebar.classList.add('open');
+  sidebarOverlay?.classList.add('visible');
+  document.body.style.overflow = 'hidden';
+}
 
-document.addEventListener('click', (e) => {
-  if (
-    window.innerWidth <= 768 &&
-    sidebar.classList.contains('open') &&
-    !sidebar.contains(e.target) &&
-    !menuToggle.contains(e.target)
-  ) {
-    sidebar.classList.remove('open');
-  }
+function closeSidebar() {
+  sidebar.classList.remove('open');
+  sidebarOverlay?.classList.remove('visible');
+  document.body.style.overflow = '';
+}
+
+menuToggle?.addEventListener('click', () => {
+  sidebar.classList.contains('open') ? closeSidebar() : openSidebar();
 });
+
+sidebarOverlay?.addEventListener('click', closeSidebar);
 
 // ===== COMPTABILITÉ =====
 let transactions = [];
@@ -2292,3 +2298,16 @@ function updateDate() {
 }
 
 updateDate();
+
+// ===== ADMIN COLLAPSIBLE SECTIONS =====
+document.querySelectorAll('.admin-card-header-toggle').forEach(header => {
+  header.addEventListener('click', (e) => {
+    if (e.target.closest('.btn-refresh')) return;
+    const targetId = header.dataset.target;
+    const body = document.getElementById(targetId);
+    const btn = header.querySelector('.btn-collapse-toggle');
+    if (!body || !btn) return;
+    const isCollapsed = body.classList.toggle('collapsed');
+    btn.textContent = isCollapsed ? '+' : '−';
+  });
+});

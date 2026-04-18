@@ -38,11 +38,18 @@ function sendDiscordWebhook(summary) {
       method:   'POST',
       headers:  { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
     };
-    const req = https.request(opts);
-    req.on('error', () => {});
+    const req = https.request(opts, (res) => {
+      res.resume();
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        console.error(`Discord webhook error: HTTP ${res.statusCode}`);
+      }
+    });
+    req.on('error', (err) => console.error('Discord webhook request error:', err.message));
     req.write(payload);
     req.end();
-  } catch {}
+  } catch (err) {
+    console.error('Discord webhook setup error:', err.message);
+  }
 }
 
 // GET /api/summaries
