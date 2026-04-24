@@ -150,23 +150,25 @@ document.getElementById('goLogin')?.addEventListener('click', (e) => {
 
 // Register
 document.getElementById('btnRegister')?.addEventListener('click', async () => {
-  const username = document.getElementById('regId').value.trim();
-  const rp_name  = document.getElementById('regRpName').value.trim();
-  const password = document.getElementById('regPwd').value;
-  const confirm  = document.getElementById('regPwdConfirm').value;
+  const username    = document.getElementById('regId').value.trim();
+  const rp_name     = document.getElementById('regRpName').value.trim();
+  const password    = document.getElementById('regPwd').value;
+  const confirm     = document.getElementById('regPwdConfirm').value;
+  const invite_code = document.getElementById('regInviteCode').value.trim();
 
-  if (!username) return setAuthError('panelRegister', 'L\'identifiant est requis.');
-  if (!rp_name)  return setAuthError('panelRegister', 'Le nom RP est requis.');
-  if (!password) return setAuthError('panelRegister', 'Le mot de passe est requis.');
+  if (!username)    return setAuthError('panelRegister', 'L\'identifiant est requis.');
+  if (!rp_name)     return setAuthError('panelRegister', 'Le nom RP est requis.');
+  if (!password)    return setAuthError('panelRegister', 'Le mot de passe est requis.');
   if (password.length < 4) return setAuthError('panelRegister', 'Mot de passe trop court (min. 4 caractères).');
   if (password !== confirm) return setAuthError('panelRegister', 'Les mots de passe ne correspondent pas.');
+  if (!invite_code) return setAuthError('panelRegister', 'Le code d\'invitation est requis.');
 
   setAuthLoading('btnRegister', true);
   try {
     const res  = await fetch(`${API}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, rp_name, password }),
+      body: JSON.stringify({ username, rp_name, password, invite_code }),
     });
     const data = await res.json();
     if (!res.ok) return setAuthError('panelRegister', data.error || 'Erreur.');
@@ -322,6 +324,7 @@ function switchSection(targetId) {
       fetchMissions();
     }
     if (targetId === 'admin') {
+      fetchAdminInviteCode();
       fetchAdminUsers();
       fetchLogs();
       fetchTransactions();
@@ -1465,6 +1468,39 @@ document.getElementById('vehicleSearch')?.addEventListener('input', (e) => {
 });
 
 // ===== ADMIN =====
+
+// Récupère et affiche le code d'inscription du jour dans la section admin.
+async function fetchAdminInviteCode() {
+  const codeEl   = document.getElementById('adminInviteCode');
+  const expireEl = document.getElementById('adminInviteExpire');
+  if (!codeEl) return;
+  codeEl.textContent = '…';
+  try {
+    const res  = await fetch(`${API}/admin/register-code`, { headers: authHeaders() });
+    const data = await res.json();
+    if (!res.ok) { codeEl.textContent = 'Erreur'; return; }
+    codeEl.textContent = data.code;
+
+    // Calcul du temps restant avant expiration (minuit UTC)
+    const now     = new Date();
+    const midnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+    const diffMs  = midnight - now;
+    const hh      = Math.floor(diffMs / 3600000);
+    const mm      = Math.floor((diffMs % 3600000) / 60000);
+    if (expireEl) expireEl.textContent = `Expire dans ${hh}h ${mm}min (minuit UTC)`;
+  } catch {
+    codeEl.textContent = 'Erreur serveur';
+  }
+}
+
+document.getElementById('btnRefreshInviteCode')?.addEventListener('click', fetchAdminInviteCode);
+
+document.getElementById('btnCopyInviteCode')?.addEventListener('click', () => {
+  const code = document.getElementById('adminInviteCode')?.textContent;
+  if (!code || code === '…' || code === '——————') return;
+  navigator.clipboard.writeText(code).then(() => showToast('Code copié !', 'success'));
+});
+
 // Cache local des utilisateurs pour la vue admin.
 let adminUsers = [];
 

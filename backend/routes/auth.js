@@ -1,16 +1,28 @@
 const express = require('express');
 const bcrypt  = require('bcryptjs');
+const crypto  = require('crypto');
 const jwt     = require('jsonwebtoken');
 const pool    = require('../db');
 
 const router = express.Router();
 
+function getDailyRegisterCode() {
+  const today = new Date().toISOString().slice(0, 10);
+  const secret = process.env.JWT_SECRET || 'fallback-secret';
+  const hmac = crypto.createHmac('sha256', secret);
+  hmac.update('register-code:' + today);
+  return hmac.digest('hex').slice(0, 6).toUpperCase();
+}
+
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
-  const { username, rp_name, password } = req.body;
+  const { username, rp_name, password, invite_code } = req.body;
 
-  if (!username || !rp_name || !password) {
+  if (!username || !rp_name || !password || !invite_code) {
     return res.status(400).json({ error: 'Tous les champs sont requis.' });
+  }
+  if (invite_code.trim().toUpperCase() !== getDailyRegisterCode()) {
+    return res.status(403).json({ error: 'Code d\'invitation invalide ou expiré.' });
   }
   if (password.length < 4) {
     return res.status(400).json({ error: 'Mot de passe trop court (min. 4 caractères).' });

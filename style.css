@@ -2660,3 +2660,83 @@ body {
   color: var(--text-muted);
   margin-left: auto;
 }
+
+/* ===== CODE D'INVITATION ADMIN ===== */
+.admin-invite-card .admin-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.admin-invite-body {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-invite-desc {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.admin-invite-code-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-invite-code {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 0.25em;
+  color: var(--accent);
+  background: var(--bg-surface);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 10px 22px;
+  user-select: all;
+}
+
+.btn-copy-code {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  font-size: 16px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.btn-copy-code:hover {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.admin-invite-expire {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Champ code dans le formulaire d'inscription */
+.auth-label-required {
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 10px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.auth-input-code {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-align: center;
+  text-transform: uppercase;
+}
